@@ -65,12 +65,12 @@ class TestTokenResolution:
 # AGENTWIRE_INFRA env var is set (or AGENTWIRE_INFRA_HOME points to
 # the AGENTWIRE install root).
 
-import os as _os
+import os
 import pytest as _pytest
-_AGENTWIRE_INFRA_HOME = _os.environ.get('AGENTWIRE_INFRA_HOME',
-    '/home/AIKali/.config/systemd/user'  # local dev default; skipped on CI
+_AGENTWIRE_INFRA_HOME = os.environ.get('AGENTWIRE_INFRA_HOME',
+    "")
 )
-_AGENTWIRE_INFRA_ENABLED = _os.environ.get('AGENTWIRE_INFRA') == '1'
+_AGENTWIRE_INFRA_ENABLED = os.environ.get('AGENTWIRE_INFRA') == '1'  # same as before
 
 _skip_unless_local = _pytest.mark.skipif(
     not _AGENTWIRE_INFRA_ENABLED,
@@ -118,12 +118,12 @@ class TestReverseProxy:
 
     def _proxy_path(self):
         # Resolve from env AGENTWIRE_INFRA_HOME (parent dir of the systemd
-        # user units). Default to /mnt/d/项目/A2A local dev path.
-        home = _os.environ.get('AGENTWIRE_INFRA_HOME',
-            '/home/AIKali/.config/systemd/user')
+        # user units). No dev fallback; env var required for local run.
+        home = os.environ.get('AGENTWIRE_INFRA_HOME',
+            None)
         # proxy.py lives at <workspace>/agentwire_core/server/proxy.py
-        # workspace defaults to /mnt/d/项目/A2A
-        workspace = _os.environ.get('AGENTWIRE_WORKSPACE', '/mnt/d/项目/A2A')
+        # workspace from env var (no fallback)
+        workspace = os.environ.get('AGENTWIRE_WORKSPACE', None)
         return Path(workspace) / 'agentwire_core' / 'server' / 'proxy.py'
 
     def test_proxy_script_exists(self):
@@ -140,11 +140,12 @@ class TestReverseProxy:
 
 class TestCLIShowsNewOptions:
     def test_host_help_includes_token_env(self):
+        # v1.4.2 AUDIT-FIX #3: no dev path fallback. Use sys.executable + env var.
         result = subprocess.run(
-            ["python3", "-m", "agentwire_cue", "host", "--help"],
+            [sys.executable, "-m", "agentwire_cue", "host", "--help"],
             capture_output=True, text=True,
-            cwd="/mnt/d/项目/A2A",
-            env={**os.environ, "PATH": "/home/AIKali/.local/bin:/usr/bin:/bin"},
+            cwd=os.environ.get("AGENTWIRE_WORKSPACE") or os.getcwd(),
+            env=dict(os.environ),  # inherit user env including PATH
         )
         # Help may exit 0 with help text, or exit 2 with error to stderr
         out = result.stdout + result.stderr
