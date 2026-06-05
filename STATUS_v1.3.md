@@ -4,7 +4,7 @@
 > **Owner**: 丝线 (SilkThread) — v1.3.1 patch author
 > **Reviewed by**: 初梦 (Chu Meng)
 > **Patch on**: v1.3 (commit 470877a)
-> **Spec patch**: `/home/AIKali/.openclaw/workspace/designs/agentwire-plugin-schema/v1.3.1/SPEC-PATCH.md`
+> **Spec patch**: `spec-path/v1.3.1/SPEC-PATCH.md`
 
 ---
 

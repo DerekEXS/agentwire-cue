@@ -4,7 +4,7 @@
 > **Tag**: `v1.4.1` (commit fd3cf12)
 > **Owner**: 丝线 (SilkThread)
 > **Reviewed**: 初梦 (Chu Meng)
-> **Spec patch**: `~/.openclaw/workspace/designs/agentwire-plugin-schema/v1.4.1/SPEC-PATCH.md`
+> **Spec patch**: `spec-path/v1.4.1/SPEC-PATCH.md`
 
 ---
 

@@ -59,11 +59,31 @@ class TestTokenResolution:
 # ---------- item-2: AGENTWIRE systemd service ----------
 # v1.4.2 regression: agentwire.service must exist and be enabled.
 
+# v1.4.2 AUDIT-FIX #3: these tests verify LOCAL dev machine infrastructure
+# (systemd service file existence + paths). They MUST NOT hardcode
+# developer-specific paths or run on CUE CI. Now skipped unless the
+# AGENTWIRE_INFRA env var is set (or AGENTWIRE_INFRA_HOME points to
+# the AGENTWIRE install root).
+
+import os as _os
+import pytest as _pytest
+_AGENTWIRE_INFRA_HOME = _os.environ.get('AGENTWIRE_INFRA_HOME',
+    '/home/AIKali/.config/systemd/user'  # local dev default; skipped on CI
+)
+_AGENTWIRE_INFRA_ENABLED = _os.environ.get('AGENTWIRE_INFRA') == '1'
+
+_skip_unless_local = _pytest.mark.skipif(
+    not _AGENTWIRE_INFRA_ENABLED,
+    reason="AUDIT-FIX #3: agentwire-core infra tests skipped on CUE CI. "
+           "Set AGENTWIRE_INFRA=1 + AGENTWIRE_INFRA_HOME=<path> to run locally."
+)
+
+@_skip_unless_local
 class TestAgentwireSystemdUnit:
     """v1.4.2 fix: agentwire.service exists, enabled, runs on 18800."""
 
-    SERVICE_PATH = Path("/home/AIKali/.config/systemd/user/agentwire.service")
-    PROXY_SERVICE_PATH = Path("/home/AIKali/.config/systemd/user/agentwire-proxy.service")
+    SERVICE_PATH = Path(_AGENTWIRE_INFRA_HOME) / "agentwire.service"
+    PROXY_SERVICE_PATH = Path(_AGENTWIRE_INFRA_HOME) / "agentwire-proxy.service"
 
     def test_agentwire_service_file_exists(self):
         assert self.SERVICE_PATH.exists(), (
@@ -92,14 +112,24 @@ class TestAgentwireSystemdUnit:
 
 # ---------- item-3: reverse proxy 18802 -> 18800 ----------
 
+@_skip_unless_local
 class TestReverseProxy:
     """v1.4.2 fix: agentwire_core/server/proxy.py exists, proxies 18802 -> 18800."""
 
-    PROXY_PATH = Path("/mnt/d/项目/A2A/agentwire_core/server/proxy.py")
+    def _proxy_path(self):
+        # Resolve from env AGENTWIRE_INFRA_HOME (parent dir of the systemd
+        # user units). Default to /mnt/d/项目/A2A local dev path.
+        home = _os.environ.get('AGENTWIRE_INFRA_HOME',
+            '/home/AIKali/.config/systemd/user')
+        # proxy.py lives at <workspace>/agentwire_core/server/proxy.py
+        # workspace defaults to /mnt/d/项目/A2A
+        workspace = _os.environ.get('AGENTWIRE_WORKSPACE', '/mnt/d/项目/A2A')
+        return Path(workspace) / 'agentwire_core' / 'server' / 'proxy.py'
 
     def test_proxy_script_exists(self):
-        assert self.PROXY_PATH.exists()
-        content = self.PROXY_PATH.read_text()
+        proxy_path = self._proxy_path()
+        assert proxy_path.exists(), f"proxy.py not found at {proxy_path}"
+        content = proxy_path.read_text()
         assert "18800" in content
         assert "18802" in content
         assert "transparent" in content.lower() or "proxy" in content.lower()
