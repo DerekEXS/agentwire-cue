@@ -70,7 +70,7 @@ class TestAgentwireSystemdUnit:
             f"agentwire.service not found at {self.SERVICE_PATH}"
         )
         content = self.SERVICE_PATH.read_text()
-        assert "agentwire_server/start.py" in content
+        assert "agentwire_core/server/start.py" in content
         assert "--port 18800" in content
         assert "Restart=always" in content
         assert "WantedBy=default.target" in content
@@ -80,7 +80,7 @@ class TestAgentwireSystemdUnit:
             f"agentwire-proxy.service not found at {self.PROXY_SERVICE_PATH}"
         )
         content = self.PROXY_SERVICE_PATH.read_text()
-        assert "agentwire_server/proxy.py" in content
+        assert "agentwire_core/server/proxy.py" in content
         assert "18802" in content
         assert "After=agentwire.service" in content
 
@@ -93,9 +93,9 @@ class TestAgentwireSystemdUnit:
 # ---------- item-3: reverse proxy 18802 -> 18800 ----------
 
 class TestReverseProxy:
-    """v1.4.2 fix: agentwire_server/proxy.py exists, proxies 18802 -> 18800."""
+    """v1.4.2 fix: agentwire_core/server/proxy.py exists, proxies 18802 -> 18800."""
 
-    PROXY_PATH = Path("/mnt/d/项目/A2A/agentwire_server/proxy.py")
+    PROXY_PATH = Path("/mnt/d/项目/A2A/agentwire_core/server/proxy.py")
 
     def test_proxy_script_exists(self):
         assert self.PROXY_PATH.exists()
