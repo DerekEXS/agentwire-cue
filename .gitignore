@@ -1,0 +1,53 @@
+# AgentWire-Cue gitignore
+
+# ===== Runtime state (created by CUE host) =====
+# These are persisted by statechart engine + peer card cache
+core/__pycache__/
+__pycache__/
+tests/__pycache__/
+
+# ===== Test artifacts =====
+.pytest_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.tox/
+
+# ===== Python build =====
+build/
+dist/
+*.egg-info/
+*.egg
+.venv/
+venv/
+*.py[codz]
+*$py.class
+
+# ===== Sensitive local data =====
+.env
+.env.local
+secrets/
+secrets.yaml
+.private/
+.notes/
+*.local.*
+*.private.*
+
+# ===== Backup / temp =====
+*.bak
+*.swp
+*.swo
+*.orig
+*.rej
+*.debug.log
+.git.backup-*
+
+# ===== OS-specific =====
+.DS_Store
+Thumbs.db
+
+# ===== Editor =====
+.vscode/
+.idea/
+*.swp
