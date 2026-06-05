@@ -1,0 +1,717 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/DerekEXS/agentwire/schemas/plugin.schema.json",
+  "title": "AgentWire Plugin v1.2",
+  "description": "Phase 1.1 schema. Backward compatible with v1 (most v1 fields are auto-mapped at loader).",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "enum": [
+        "agentwire/v1",
+        "agentwire/v1.1",
+        "agentwire/v1.2"
+      ],
+      "description": "v1.2 adds resilience + fallbacks + meta.* template. Backward compat: v1/v1.1 plugins still load."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "plugin"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,62}$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "required": [
+        "triggers",
+        "statechart",
+        "secrets",
+        "permissions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "triggers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/trigger"
+          }
+        },
+        "statechart": {
+          "$ref": "#/$defs/statechart"
+        },
+        "resilience": {
+          "$ref": "#/$defs/resilience"
+        },
+        "fallbacks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fallback"
+          }
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/secret"
+          }
+        },
+        "permissions": {
+          "$ref": "#/$defs/permissions"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "trigger": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "config"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{1,62}$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "a2a_message_type",
+            "cron"
+          ]
+        },
+        "config": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "a2a_message_type"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "required": [
+                  "match"
+                ],
+                "properties": {
+                  "match": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cron"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "required": [
+                  "expression",
+                  "timezone"
+                ],
+                "properties": {
+                  "expression": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "timezone": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "statechart": {
+      "type": "object",
+      "required": [
+        "initial",
+        "states"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "initial": {
+          "type": "string"
+        },
+        "context": {
+          "type": "object",
+          "description": "v1.1: persistent KV. Each key's value preserves YAML type.",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "states": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/state"
+          }
+        },
+        "persist": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "exclude": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "atomic",
+            "final",
+            "parallel"
+          ]
+        },
+        "after": {
+          "description": "v1.1: list form, first-to-fire wins. v1 object form auto-migrated.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "ms",
+              "target"
+            ],
+            "properties": {
+              "ms": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "target": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "deadline": {
+          "description": "v1.1: list form, per-state. v1 object form auto-migrated.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "time",
+              "timezone",
+              "target"
+            ],
+            "properties": {
+              "time": {
+                "type": "string",
+                "pattern": "^[0-2][0-9]:[0-5][0-9]$"
+              },
+              "timezone": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "on": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/transition"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        }
+      }
+    },
+    "transition": {
+      "description": "v1.1: object form. v1 string target auto-migrated to {target: <str>}.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "v1 shorthand: target state name"
+        },
+        {
+          "type": "object",
+          "required": [
+            "target"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "target": {
+              "type": "string",
+              "minLength": 1
+            },
+            "guard": {
+              "type": "string"
+            },
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/action"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "type",
+        "with"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "reply_a2a",
+            "send_a2a",
+            "log",
+            "set_context",
+            "increment_context",
+            "write_file",
+            "spawn_subprocess",
+            "http_request"
+          ]
+        },
+        "with": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "reply_a2a"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "with": {
+                "required": [
+                  "template"
+                ],
+                "properties": {
+                  "template": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "send_a2a"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "with": {
+                "required": [
+                  "peer",
+                  "message"
+                ],
+                "properties": {
+                  "peer": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "log"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "with": {
+                "required": [
+                  "level",
+                  "message"
+                ],
+                "properties": {
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "info",
+                      "warn",
+                      "error"
+                    ]
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "set_context"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "with": {
+                "description": "Each key MUST be declared in statechart.context.",
+                "minProperties": 1,
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "increment_context"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "with": {
+                "required": [
+                  "key",
+                  "by"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "by": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "secret": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{1,62}$"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "network": {
+          "description": "v1.1: object form. v1 bool auto-migrated.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "http_egress": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": []
+                },
+                "raw_socket": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            }
+          ]
+        },
+        "filesystem": {
+          "description": "v1.1: list of {path, modes}. v1 list of string globs auto-migrated.",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "path",
+                  "modes"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "modes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "read",
+                        "write",
+                        "append",
+                        "delete"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "subprocess": {
+          "description": "v1.1: object form. v1 bool auto-migrated.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "allow": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "default": []
+                }
+              }
+            }
+          ]
+        },
+        "env": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,62}$"
+          },
+          "default": []
+        },
+        "peers": {
+          "description": "v1.1: list of {id, allow_messages}. v1 list of strings auto-migrated.",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "allow_messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "default": [
+                      "*"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "timers": {
+          "description": "v1.1: new. Prevents self-scheduling death loops.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_concurrent": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 3
+            },
+            "min_interval_ms": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 60000
+            }
+          }
+        }
+      }
+    },
+    "resilience": {
+      "description": "v1.2: per-plugin A2A retry/backoff config. Top-level default; peer_overrides reserved for v1.3.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "a2a_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Number of retry attempts after initial failure. 0 = no retry."
+        },
+        "backoff_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1000,
+          "description": "Starting backoff. Core MAY use exponential (backoff_ms * 2^(N-1), capped at 30s)."
+        },
+        "on_exhaust": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Target state name to transition to when retries are exhausted AND no fallback matched. Must be a state declared in statechart.states."
+        },
+        "peer_overrides": {
+          "type": "object",
+          "description": "v1.2: reserved, empty. v1.3 will enable per-peer resilience config.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "a2a_retries": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "backoff_ms": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "fallback": {
+      "description": "v1.2: single fallback rule. Fires when its condition evaluates true on a synthetic A2A_EXHAUSTED event.",
+      "type": "object",
+      "required": [
+        "id",
+        "condition",
+        "actions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{1,62}$",
+          "description": "Unique within fallbacks[]"
+        },
+        "condition": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Expression over event/context/state/meta/now. Standard comparison/logical ops + now()/since()/duration_in_state() funcs. See spec.md \u00a73."
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        }
+      }
+    }
+  }
+}

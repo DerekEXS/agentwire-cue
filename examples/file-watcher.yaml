@@ -1,0 +1,55 @@
+apiVersion: agentwire/v1.2
+kind: plugin
+
+# v1.4 example: file-watcher
+# 用途: write_file action + filesystem permission + sandbox
+# 用法: cue host --plugin-dir examples/ --admin-token=xxx
+
+metadata:
+  name: file-watcher
+  version: 0.1.0
+  description: v1.4 example. 每次收到 A2A message, 写到 logs/<name>.log (file watcher).
+
+spec:
+  triggers:
+    - id: any-incoming
+      type: a2a_message_type
+      config: { match: "*" }
+
+  statechart:
+    initial: idle
+    context:
+      write_count: 0
+    persist:
+      path: "~/.local/share/agentwire-cue/state/{{meta.name}}.json"
+    states:
+      idle:
+        "on":
+          WRITE_LOG:
+            target: idle
+            actions:
+              - type: write_file
+                with:
+                  path: "~/.local/share/agentwire-cue/logs/{{meta.name}}.log"
+                  mode: write
+                  content: "[{{now}}] {{event.message.text}}\n"
+              - type: increment_context
+                with:
+                  key: write_count
+                  by: 1
+              - type: log
+                with:
+                  level: info
+                  message: "[{{meta.name}}] wrote #{{context.write_count}}"
+
+  secrets: []
+
+  permissions:
+    filesystem:
+      - path: "~/.local/share/agentwire-cue/logs/*.log"
+        modes: ["write"]
+    network: { http_egress: [], raw_socket: false }
+    subprocess: { allow: [] }
+    env: []
+    peers: []
+    timers: { max_concurrent: 1, min_interval_ms: 1000 }

@@ -1,0 +1,87 @@
+apiVersion: agentwire/v1.2
+kind: plugin
+
+# v1.4 example: a2a-with-fallback
+# 用途: A2A 失败 → retry → fallback 链 (D1 caller 编排)
+# 用法: cue host --plugin-dir examples/ --admin-token=xxx
+
+metadata:
+  name: a2a-with-fallback
+  version: 0.1.0
+  description: v1.4 example. 收到 message 后 send_a2a 到 peer "downstream", 失败时 fallback.
+
+spec:
+  triggers:
+    - id: any-incoming
+      type: a2a_message_type
+      config: { match: "*" }
+
+  statechart:
+    initial: idle
+    context:
+      forward_count: 0
+      exhausted_count: 0
+    persist:
+      path: "~/.local/share/agentwire-cue/state/{{meta.name}}.json"
+    states:
+      idle:
+        "on":
+          FORWARD:
+            target: forwarded
+            actions:
+              - type: increment_context
+                with:
+                  key: forward_count
+                  by: 1
+              - type: send_a2a
+                with:
+                  peer: downstream
+                  message:
+                    type: A2A_MESSAGE
+                    text: "from {{meta.name}}: {{event.message.text}}"
+      forwarded:
+        "on":
+          A2A_EXHAUSTED:
+            target: replied_fallback
+            actions:
+              - type: increment_context
+                with:
+                  key: exhausted_count
+                  by: 1
+      replied_fallback:
+        actions:
+          - type: log
+            with:
+              level: warn
+              message: "[{{meta.name}}] downstream exhausted"
+        "on":
+          FALLBACK_DONE:
+            target: done
+      done:
+        type: final
+
+  resilience:
+    a2a_retries: 2
+    backoff_ms: 500
+    on_exhaust: replied_fallback
+
+  fallbacks:
+    - id: warn_user
+      condition: "event.a2a_exhausted == true"
+      actions:
+        - type: log
+          with: { level: warn, message: "[{{meta.name}}] fallback fired" }
+
+  secrets: []
+
+  permissions:
+    network:
+      http_egress: ["localhost", "127.0.0.1"]
+      raw_socket: false
+    filesystem: []
+    subprocess: { allow: [] }
+    env: []
+    peers:
+      - id: downstream
+        allow_messages: ["*"]
+    timers: { max_concurrent: 1, min_interval_ms: 1000 }

@@ -1,0 +1,57 @@
+apiVersion: agentwire/v1.2
+kind: plugin
+
+# v1.4 example: cron-driven
+# 用途: cron trigger 定时器触发, log + set_context + increment + persist
+# 用法: cue host --plugin-dir examples/ --admin-token=xxx
+
+metadata:
+  name: cron-driven
+  version: 0.1.0
+  description: v1.4 example. 定时器触发, 每 5 分钟 fire 一次, 累加 tick_count。
+
+spec:
+  triggers:
+    - id: every-5-min
+      type: cron
+      config:
+        expression: "*/5 * * * *"
+        timezone: "UTC"
+
+  statechart:
+    initial: idle
+    context:
+      tick_count: 0
+      last_tick_at_ms: 0
+    persist:
+      path: "~/.local/share/agentwire-cue/state/{{meta.name}}.json"
+    states:
+      idle:
+        "on":
+          CRON_FIRED:
+            target: idle
+            actions:
+              - type: set_context
+                with:
+                  last_tick_at_ms: "{{now}}"
+              - type: increment_context
+                with:
+                  key: tick_count
+                  by: 1
+              - type: log
+                with:
+                  level: info
+                  message: "[{{meta.name}}] tick #{{context.tick_count}}"
+
+  resilience:
+    a2a_retries: 0
+
+  secrets: []
+
+  permissions:
+    network: { http_egress: [], raw_socket: false }
+    filesystem: []
+    subprocess: { allow: [] }
+    env: []
+    peers: []
+    timers: { max_concurrent: 1, min_interval_ms: 1000 }
