@@ -1,0 +1,65 @@
+apiVersion: agentwire/v1.2
+kind: plugin
+
+metadata:
+  name: echo
+  version: 0.3.0
+  description: |
+    v1.2 hello-world. Echoes A2A messages with a counter,
+    uses {{meta.*}} template + resilience on_exhaust.
+    Pure YAML, zero Python.
+
+spec:
+  triggers:
+    - id: any-incoming
+      type: a2a_message_type
+      config: { match: "*" }
+
+  statechart:
+    initial: idle
+    context:                              # v1.1: 持久 KV
+      received_count: 0
+    states:
+      idle:
+        "on":                            # YAML 1.1 陷阱：必须引号
+          MESSAGE_RECEIVED:
+            target: reply
+            actions:
+              - type: increment_context
+                with:
+                  key: received_count
+                  by: 1
+      reply:
+        type: final
+        actions:
+          - type: reply_a2a
+            with:
+              # ✨ v1.2: {{meta.*}} 模板可用
+              template: "[{{meta.name}} v{{meta.version}}] Echo #{{context.received_count}}: {{event.message.text}}"
+
+  # ✨ v1.2: resilience 示例（不真发 A2A，但 syntax 演示）
+  resilience:
+    a2a_retries: 2
+    backoff_ms: 500
+    on_exhaust: idle                    # 失败回到 idle 等下一条（demo 用）
+
+  fallbacks:
+    # ✨ v1.2: a2a_exhausted 标准 fallback
+    - id: never_give_up
+      condition: "event.a2a_exhausted == true"
+      actions:
+        - type: log
+          with: { level: warn, message: "A2A exhausted but continuing" }
+        - type: reply_a2a
+          with:
+            template: "[{{meta.name}}] ⚠️ A2A 暂时不通，已记日志"
+
+  secrets: []
+
+  permissions:
+    network: { http_egress: [], raw_socket: false }
+    filesystem: []
+    subprocess: { allow: [] }
+    env: []
+    peers: []
+    timers: { max_concurrent: 1, min_interval_ms: 1000 }

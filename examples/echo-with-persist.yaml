@@ -1,0 +1,69 @@
+apiVersion: agentwire/v1.2.1
+kind: plugin
+
+metadata:
+  name: echo
+  version: 0.4.0
+  description: |
+    v1.2.1 echo with state persistence.
+    Use this to verify stage 1: set context → kill host → restart → context restored.
+
+spec:
+  triggers:
+    - id: any-incoming
+      type: a2a_message_type
+      config: { match: "*" }
+
+  statechart:
+    initial: idle
+    context:                              # v1.1: 持久 KV
+      received_count: 0
+      last_message: ""
+    persist:                              # ✨ v1.2.1
+      path: "~/.local/share/agentwire-cue/state/{{meta.name}}.json"
+      exclude:                            # opt-out 字段
+        - "last_message"                  # 临时消息不持久化
+    states:
+      idle:
+        "on":                            # YAML 1.1 陷阱：必须引号
+          MESSAGE_RECEIVED:
+            target: reply
+            actions:
+              - type: increment_context
+                with:
+                  key: received_count
+                  by: 1
+              - type: set_context
+                with:
+                  last_message: "{{event.message.text}}"
+      reply:
+        type: final
+        actions:
+          - type: reply_a2a
+            with:
+              template: "[{{meta.name}}] #{{context.received_count}}: {{event.message.text}}"
+
+  resilience:
+    a2a_retries: 2
+    backoff_ms: 500
+    on_exhaust: idle
+
+  fallbacks:
+    - id: never_give_up
+      condition: "event.a2a_exhausted == true"
+      actions:
+        - type: log
+          with: { level: warn, message: "A2A exhausted" }
+        - type: reply_a2a
+          with:
+            template: "[{{meta.name}}] 暂时联系不上"
+
+  secrets: []
+
+  permissions:
+    network: { http_egress: [], raw_socket: false }
+    filesystem: []
+    subprocess: { allow: [] }
+    env: []
+    peers: []
+    timers: { max_concurrent: 1, min_interval_ms: 1000 }
