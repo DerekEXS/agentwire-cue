@@ -116,9 +116,17 @@ class Host:
 
         # Wire statecharts to use a2a_client + fallback_dispatcher
         from .statechart import StatechartEngine
+        # v1.4.3: history client + proxy for expressions
+        from .history_client import HistoryClient
+        history_client = HistoryClient(
+            a2a_url=self.a2a_url,
+            token=self.a2a_token or '',
+        )
         for p in self.plugins.values():
             if p.statechart is None:
-                p.statechart = StatechartEngine(p)
+                p.statechart = StatechartEngine(p, history_client=history_client)
+            else:
+                p.statechart.history_client = history_client
             p.statechart._a2a_reply = self._wrap_reply(p)
             p.statechart._a2a_send = self._wrap_send(p)
 
@@ -164,6 +172,12 @@ class Host:
 
     async def _setup_triggers(self) -> None:
         """v1.3.1 patch 2 D2 + v1.4 §2.1.1: 启动期 <500ms SLO."""
+        from .history_client import HistoryClient
+        from .trigger_impl import HistoryChangeTrigger
+        history_client = HistoryClient(
+            a2a_url=self.a2a_url,
+            token=self.a2a_token or '',
+        )
         all_triggers = []
         for p in self.plugins.values():
             for t_def in p.triggers:
@@ -172,6 +186,8 @@ class Host:
                     all_triggers.append(CronTrigger(t_def.__dict__, p))
                 elif ttype == 'a2a_message_type':
                     all_triggers.append(A2ATrigger(t_def.__dict__, p, a2a_listener=self.a2a_listener))
+                elif ttype == 'history_change':  # v1.4.3
+                    all_triggers.append(HistoryChangeTrigger(t_def.__dict__, p, history_client=history_client))
                 else:
                     raise TriggerSetupError(f"unknown trigger type: {ttype}")
         t0 = time.perf_counter()

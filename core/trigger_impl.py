@@ -2,6 +2,8 @@
 
 - CronTrigger: cron expression + IANA timezone, asyncio task
 - A2ATrigger: matches inbound A2A messages by pattern
+- HistoryChangeTrigger (v1.4.3): polls CORE /messages/peers, fires
+  on round completion or message arrival
 
 Both register via TriggerScheduler.register() (v1.3.1 patch 2 D2 awaits setup).
 """
@@ -183,3 +185,98 @@ class A2ATrigger(Trigger):
         # A2AListener's handler list is drained on stop(); we don't unregister
         # individual handlers in v1.4 P0 #1 (deferred to P2 if needed).
         self._registered = False
+
+
+# ---------- HistoryChangeTrigger (v1.4.3) ----------
+
+class HistoryChangeTrigger(Trigger):
+    """v1.4.3: fires when a peer's history changes.
+
+    granularity:
+      - "round"   (default): fire once per new round completed
+      - "message": fire on every new message
+      - "manual":  only fires on cue trigger ... manual command
+
+    poll_interval_seconds: how often to check /messages/peers (default 30)
+    peer: which peer to watch; "*" = all peers
+    """
+
+    def __init__(self, trigger_def: dict, plugin, history_client=None):
+        super().__init__(trigger_def, plugin)
+        self.granularity: str = self.config.get('granularity', 'round')
+        self.peer: str = self.config.get('peer', '*')
+        self.poll_interval: int = int(self.config.get('poll_interval_seconds', 30))
+        self._history_client = history_client
+        self._last_snapshot: dict = {}  # peer_name → last_round
+        self._task: Optional[asyncio.Task] = None
+        self._running = False
+
+    async def setup(self) -> None:
+        if self._history_client is None:
+            raise TriggerSetupError(
+                f"history_change trigger {self.id!r}: no history_client provided. "
+                f"Host must pass HistoryClient when constructing trigger."
+            )
+        self._running = True
+        self._task = asyncio.create_task(self._poll_loop(), name=f"hist-chg-{self.id}")
+        log.info("history_change trigger %s registered (granularity=%s, peer=%s, poll=%ds)",
+                 self.id, self.granularity, self.peer, self.poll_interval)
+
+    async def _poll_loop(self) -> None:
+        # Initial snapshot
+        try:
+            peers = self._history_client.list_peers()
+            for p in peers:
+                key = p.get("name") or p.get("uuid")
+                self._last_snapshot[key] = int(p.get("last_round", 0))
+        except Exception as e:
+            log.warning("history_change %s initial poll failed: %s", self.id, e)
+
+        while self._running:
+            await asyncio.sleep(self.poll_interval)
+            try:
+                peers = self._history_client.list_peers()
+            except Exception as e:
+                log.warning("history_change %s poll failed: %s", self.id, e)
+                continue
+
+            for p in peers:
+                key = p.get("name") or p.get("uuid")
+                if self.peer != "*" and key != self.peer:
+                    continue
+                last = int(p.get("last_round", 0))
+                prev = self._last_snapshot.get(key, 0)
+                if last > prev:
+                    new_rounds = last - prev
+                    log.info("history_change %s: peer=%s new_rounds=%d (was %d → %d)",
+                             self.id, key, new_rounds, prev, last)
+                    await self._fire(key, prev, last, new_rounds)
+                    self._last_snapshot[key] = last
+
+    async def _fire(self, peer: str, prev_round: int, new_round: int, count: int) -> None:
+        try:
+            await self.plugin.statechart.transition(Event(
+                type='history_change',
+                payload={
+                    'peer': peer,
+                    'prev_round': prev_round,
+                    'new_round': new_round,
+                    'new_count': count,
+                    'granularity': self.granularity,
+                },
+            ))
+        except Exception as e:
+            log.exception("history_change trigger %s fire failed: %s", self.id, e)
+
+    def matches(self, payload: dict) -> bool:
+        # History triggers don't match inbound payloads (they self-fire on poll)
+        return False
+
+    async def teardown(self) -> None:
+        self._running = False
+        if self._task:
+            self._task.cancel()
+            try:
+                await self._task
+            except (asyncio.CancelledError, Exception):
+                pass

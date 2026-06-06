@@ -1,13 +1,13 @@
-"""AgentWire-Cue v1.3 expression engine.
+"""AgentWire-Cue v1.4.3 expression engine.
 
 Implements v1.3 §5 + v1.2 spec.md §3 grammar and type rules.
 
 - 30-line recursive-descent parser (per spec; actual is ~80 lines for
   clarity on tokenize + parse + eval, with the spec intent preserved)
 - Strict no-implicit-conversion comparison (v1.2 spec §3.2)
-- Whitelist namespaces: event / context / state / meta (v1.2 spec §2.2)
+- Whitelist namespaces: event / context / state / meta / peers / history (v1.2 spec §2.2)
 - Functions: now / since / duration_in_state (v1.2 spec §3.3)
-- 4 namespaces only: secrets / env are explicitly denied
+- 6 namespaces only: secrets / env are explicitly denied
 """
 from __future__ import annotations
 
@@ -124,6 +124,17 @@ class _Parser:
             if nxt is None or not re.match(r"^[A-Za-z_]", nxt):
                 raise ExpressionError(f"expected identifier after '.', got {nxt!r}")
             path.append(self.eat(nxt))
+        # v1.4.3: method call on path result (e.g. peers.Pawly.history.last(5))
+        if self.peek() == "(":
+            self.pos += 1
+            args: list[dict] = []
+            if self.peek() != ")":
+                args.append(self.parse_or())
+                while self.peek() == ",":
+                    self.pos += 1
+                    args.append(self.parse_or())
+            self.eat(")")
+            return {"op": "method", "path": path, "args": args}
         return {"op": "variable", "path": path}
 
     def parse_literal(self) -> dict:
@@ -168,7 +179,11 @@ def parse(expr: str) -> dict:
     return _Parser(tokens, source=expr).parse_expr()
 
 
-_ALLOWED_NAMESPACES = frozenset({"event", "context", "state", "meta", "now"})
+_ALLOWED_NAMESPACES = frozenset({
+    "event", "context", "state", "meta", "now",
+    # v1.4.3: history and peer namespaces
+    "peers", "history",
+})
 
 
 def _resolve_path(env: dict, path: list[str]) -> Any:
@@ -187,10 +202,13 @@ def _resolve_path(env: dict, path: list[str]) -> Any:
         return env["now"]
     cur: Any = env.get(ns, {})
     for key in path[1:]:
+        if cur is None:
+            return None
         if isinstance(cur, dict):
             cur = cur.get(key)
         else:
-            cur = None
+            # v1.4.3: support object proxies (e.g. _PeersNamespace, _PeerProxy)
+            cur = getattr(cur, key, None)
         if cur is None:
             return None
     return cur
@@ -259,6 +277,29 @@ def evaluate(ast: dict, env: dict) -> Any:
 
     if op == "function":
         return _call_function(ast["name"], ast["args"], env)
+
+    if op == "method":
+        # v1.4.3: a.b.c(args) — resolve path to object, then call its method
+        if not ast["path"]:
+            raise ExpressionError("empty method path")
+        ns = ast["path"][0]
+        if ns not in _ALLOWED_NAMESPACES:
+            raise ExpressionError(
+                f"namespace {ns!r} not in whitelist "
+                f"(allowed: {sorted(_ALLOWED_NAMESPACES)})"
+            )
+        obj = _resolve_path(env, ast["path"][:-1])
+        method_name = ast["path"][-1]
+        if obj is None:
+            return None
+        method = getattr(obj, method_name, None)
+        if method is None or not callable(method):
+            return None
+        args = [evaluate(a, env) for a in ast["args"]]
+        try:
+            return method(*args)
+        except Exception:
+            return None
 
     if op == "cmp":
         lhs = evaluate(ast["lhs"], env)

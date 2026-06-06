@@ -134,11 +134,14 @@ def register_action(name: str, handler: ActionHandler) -> None:
 # ---------- EvalEnv (template guard context) ----------
 
 class EvalEnv:
-    """The 4-namespace + 1-function env passed to guard eval and templates.
+    """The 6-namespace + 1-function env passed to guard eval and templates.
 
     Holds a SHARED reference to the engine's context dict (not a copy) so that
     action side effects (set_context / increment_context / write_file) are
     visible to subsequent actions and the persist step.
+
+    v1.4.3: includes `peers` and `history` namespaces (proxied via
+    HistoryProxy), populated from a HistoryClient when available.
     """
 
     def __init__(
@@ -148,18 +151,25 @@ class EvalEnv:
         current_state: str,
         entered_at_ms: int,
         context: dict,
+        history_client=None,
     ) -> None:
         self.plugin = plugin
         self.event = event
         self.current_state = current_state
         self.entered_at_ms = entered_at_ms
         self.context = context  # SHARED reference — see class docstring
+        self.history_client = history_client
 
     @property
     def plugin_name(self) -> str:
         return self.plugin.name
 
     def as_dict(self) -> dict:
+        from .history_proxy import _HistoryNamespace, _PeersNamespace
+        peers_ns = _PeersNamespace(self.history_client)
+        history_ns = _HistoryNamespace(peers_ns)
+        # Refresh snapshot from the (cached) client
+        peers_ns.refresh()
         return {
             "event": self.event.as_dict(),
             "context": self.context,
@@ -170,6 +180,8 @@ class EvalEnv:
             },
             "meta": self.plugin.meta,
             "now": now_ms(),
+            "peers": peers_ns,
+            "history": history_ns,
         }
 
 
@@ -191,6 +203,7 @@ class StatechartEngine:
         a2a_reply: Callable[[str, str], Awaitable[None]] | None = None,
         a2a_send: Callable[[str, str], Awaitable[None]] | None = None,
         from_fallback: bool = False,
+        history_client=None,
     ) -> None:
         self.plugin = plugin
         spec_sc = plugin.spec.get("statechart", {})
@@ -200,6 +213,7 @@ class StatechartEngine:
         self.persist_path: Path | None = plugin.resolved_persist_path
         self.persist_exclude: list[str] = spec_sc.get("persist", {}).get("exclude", []) \
             if isinstance(spec_sc.get("persist"), dict) else []
+        self.history_client = history_client  # v1.4.3
 
         self.current_state: str = self.initial
         self.state_entered_at_ms: int = now_ms()
@@ -238,6 +252,7 @@ class StatechartEngine:
             self.plugin, event,
             self.current_state, self.state_entered_at_ms,
             self.context,
+            history_client=self.history_client,
         )
 
         for t in transitions:
