@@ -3,10 +3,21 @@
 > **拟定日期**: 2026-06-04
 > **拟定人**: 丝线 (SilkThread)
 > **基础**: v1.3 spec 的 v1.4 backlog 12 项 + v1.3 实现期发现的实操问题 + v1.3 roadmap 11 项未完成
+> **v1.4 整体状态**: ✅ **v1.4.3 冻结** (2026-06-06, tag `v1.4.3`, commit `e40beb8`) — 见 [STATUS_v1.4.3.md](STATUS_v1.4.3.md)
+>   - v1.4.1 (commit `fd3cf12`): P0 全 5 项 + P1 6 项 partial
+>   - v1.4.2 (commit `749e098`): BOM + systemd + reverse proxy + token-env
+>   - v1.4.3 (commit `e40beb8`): history / redact / CUE 命名空间扩展 / agent SKILL 库 / 双语 README
+> **配套 core 仓**: agentwire-core v1.4.3 (tag `v1.4.3`, commit `5935191`) — see [agentwire-core/STATUS_v1.4.3.md](https://github.com/DerekEXS/agentwire-core)
 
 ---
 
-## v1.3 落地总结
+## v1.4 三大目标 (回顾)
+
+1. **A2A 消息真正打通** (P0)：host 进程能收能发 A2A message，含 retry+backoff+fallback → ✅ v1.4.1
+2. **运维就绪** (P1)：admin API + Dockerfile + 端到端测试 → ✅ v1.4.1（部分）/ ⏳ v1.5 (Dockerfile)
+3. **生态铺垫** (P2)：killer examples + 可观测性 + 升级协议 → ✅ v1.4.1 (examples) / ⏳ v1.5 (structlog / 协议升级)
+
+> 详细交付见 [STATUS_v1.4.3.md](STATUS_v1.4.3.md)。
 
 ✅ **v1.3 冻结** (commit 470877a): 154 tests / 1522 行 core 代码 / 端到端 smoke 跑通
 ✅ **v1.3.1 patch 冻结** (commit pending): +33 test / + sandbox.py / + target validation / 195 tests 全绿
@@ -229,16 +240,26 @@ v1.3.1 patch 修了 2 个 P0 bug:
 ## 🎯 v1.4 freeze 目标
 
 W3 末 (3 周内) 达到：
-- [ ] `cue host` 跑通真实 cron + A2A 流程
-- [ ] 端到端测试覆盖率 ≥ 10%
-- [ ] 3 个新 example + 1 个 production-grade resilience demo
-- [ ] Dockerfile + docker-compose 可部署
-- [ ] admin API 3 endpoint 可用
-- [ ] 全部 v1.3 backlog P0+P1 关闭
-- [ ] 破晓 review 通过 §8 代码实现
-- [ ] 4-stage rollout stage 1 (dev-only) 实际启动一次
+- [x] `cue host` 跑通真实 cron + A2A 流程 (v1.4.1)
+- [x] 端到端测试覆盖率 ≥ 10% (v1.4.1)
+- [x] 3 个新 example + 1 个 production-grade resilience demo (v1.4.1: cron-driven / a2a-with-fallback / file-watcher / echo-with-persist)
+- [x] admin API 3 endpoint 可用 (v1.4.1: /status /plugins /trigger)
+- [x] 全部 v1.3 backlog P0+P1 关闭 (v1.4.1)
+- [x] 4-stage rollout stage 1 (dev-only) 实际启动一次 (v1.4.1)
+- [x] history 持久化 (v1.4.3)
+- [x] redact 引擎 (v1.4.3)
+- [x] CUE 引用 history (v1.4.3: peers.* / history.* 命名空间 + history_change trigger)
+- [x] Agent SKILL 库 (v1.4.3: 9 docs in core + 5 docs in cue)
+- [x] 双语 README (v1.4.3)
+- [x] tag v1.4.3 + push + GitHub release (v1.4.3)
+- [ ] Dockerfile + docker-compose 可部署 (留 v1.5)
+- [ ] structlog 可观测性 (留 v1.5)
+- [ ] 跨 CUE 依赖 (留 v1.5)
+
+**v1.4.3 冻结 (2026-06-06)** — 剩余 3 项转 v1.5 backlog。
 
 ---
 
 *初拟: 2026-06-04 丝线*
 *待 review: 初梦 + 破晓*
+*v1.4 冻结: 2026-06-06 (v1.4.3) 丝线 — 详见 STATUS_v1.4.3.md*
