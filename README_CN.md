@@ -7,7 +7,7 @@
 [![A2A Protocol](https://img.shields.io/badge/A2A-v1.0.1-blue)](https://a2a-protocol.org/latest/specification/)
 [![许可证](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
-[![状态](https://img.shields.io/badge/status-v1.4.3-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v1.4.3)
+[![状态](https://img.shields.io/badge/status-v1.4.4-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v1.4.4)
 
 ---
 

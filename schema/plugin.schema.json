@@ -110,7 +110,8 @@
           "type": "string",
           "enum": [
             "a2a_message_type",
-            "cron"
+            "cron",
+            "history_change"
           ]
         },
         "config": {
@@ -164,6 +165,44 @@
                   },
                   "timezone": {
                     "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "history_change"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "required": [
+                  "peer",
+                  "granularity"
+                ],
+                "properties": {
+                  "peer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "v1.4.3: peer name to watch. Use '*' for all peers."
+                  },
+                  "granularity": {
+                    "type": "string",
+                    "enum": ["round", "message", "manual"],
+                    "description": "v1.4.3: round = fire on new round; message = fire on every new message; manual = operator-triggered only."
+                  },
+                  "poll_interval_seconds": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 600,
+                    "default": 30,
+                    "description": "v1.4.3: how often to poll CORE /messages/peers. Default 30s."
                   }
                 }
               }

@@ -1,13 +1,17 @@
 # AgentWire-Cue v1.4 — 迭代方案
 
+> **状态**: ✅ **v1.4 系列 FROZEN (2026-06-07, v1.4.4 实施完成)**
+> **v1.4 整体交付**: v1.4.1 + v1.4.2 + v1.4.3 + v1.4.4
 > **拟定日期**: 2026-06-04
 > **拟定人**: 丝线 (SilkThread)
 > **基础**: v1.3 spec 的 v1.4 backlog 12 项 + v1.3 实现期发现的实操问题 + v1.3 roadmap 11 项未完成
-> **v1.4 整体状态**: ✅ **v1.4.3 冻结** (2026-06-06, tag `v1.4.3`, commit `e40beb8`) — 见 [STATUS_v1.4.3.md](STATUS_v1.4.3.md)
+> **v1.4 整体状态**: ✅ **v1.4.4 冻结** (2026-06-07, tag `v1.4.4` in 双仓)
 >   - v1.4.1 (commit `fd3cf12`): P0 全 5 项 + P1 6 项 partial
 >   - v1.4.2 (commit `749e098`): BOM + systemd + reverse proxy + token-env
->   - v1.4.3 (commit `e40beb8`): history / redact / CUE 命名空间扩展 / agent SKILL 库 / 双语 README
+>   - v1.4.3 (commit `798455c` deref `2c1e083`): history / redact / CUE 命名空间扩展 / agent SKILL 库 / 双语 README
+>   - v1.4.4 (2026-06-07): killer example `owner-alert` / PROTOCOL_QUICK_REF 增补 / CHANGELOG + designs/v1.4.3/SPEC-PATCH 同步债
 > **配套 core 仓**: agentwire-core v1.4.3 (tag `v1.4.3`, commit `5935191`) — see [agentwire-core/STATUS_v1.4.3.md](https://github.com/DerekEXS/agentwire-core)
+> **完整 v1.4 系列归档**: [agentwire-cue STATUS_v1.4.4.md](STATUS_v1.4.4.md) + [CHANGELOG.md](CHANGELOG.md)
 
 ---
 

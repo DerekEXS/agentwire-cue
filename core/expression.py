@@ -15,12 +15,13 @@ import re
 from typing import Any
 
 _TOKEN_PATTERN = re.compile(
+    r"(?u)"
     r"-\d+\.\d+|-\d+|\d+\.\d+|\d+|"  # number: negative float, negative int, float, int
     r'"[^"]*"|'                # double-quoted string
     r"'[^']*'|"                # single-quoted string
     r"==|!=|>=|<=|&&|\|\||!|>|<|"  # multi-char ops
     r"\(|\)|,|\.|\$|"          # punctuation
-    r"[A-Za-z_][A-Za-z0-9_]*"  # identifier
+    r"[\w]+"                    # identifier (unicode-aware: supports e.g. 初梦 / _foo / abc123)
 )
 
 
@@ -121,7 +122,7 @@ class _Parser:
         while self.peek() == ".":
             self.pos += 1
             nxt = self.peek()
-            if nxt is None or not re.match(r"^[A-Za-z_]", nxt):
+            if nxt is None or not re.match(r"(?u)^\w", nxt or ""):
                 raise ExpressionError(f"expected identifier after '.', got {nxt!r}")
             path.append(self.eat(nxt))
         # v1.4.3: method call on path result (e.g. peers.Pawly.history.last(5))

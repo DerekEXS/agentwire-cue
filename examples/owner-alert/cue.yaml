@@ -1,0 +1,80 @@
+apiVersion: agentwire/v1.2
+kind: plugin
+
+# v1.4.4 example: owner-alert
+# 用途: Pawly/初梦 任一 peer 收到含 urgent: 关键词 → send_a2a 给主 agent (初梦) 路由
+# 演示: v1.4.3 history_change trigger + peers.X.history.last_inbound_contains() 表达式
+#
+# v1.4.4 fix: 初梦 review (P0 bug):
+#   - 修复前: notify 状态无回环, history_change 每 15s poll → guard 仍 true
+#     → 每 15s 重复发一次告警 (spamming!)
+#   - 修复后: 状态自循环 (watching → watching), guard 加
+#     "event.new_round > context.last_notified_round" 去重
+#     + set_context 记录已告警 round
+#     效果: 仅每个新 round 告警一次
+#
+# 验收: cue 单测 (v1.4.4 scope)
+#   端到端 TG 通知由初梦 OpenClaw 配 A2A→TG channel 路由 (v1.4.4 scope 外)
+# 用法: cue host --plugin-dir examples/ --admin-token=xxx
+
+metadata:
+  name: owner-alert
+  version: 1.4.4
+  description: "v1.4.4 killer example. 监听 Pawly/初梦 history; 含 urgent: 关键词时路由给主 agent. v1.4.4 fix: 自循环去重避免 spamming."
+
+spec:
+  triggers:
+    - id: on-pawly-urgent
+      type: history_change
+      config:
+        peer: "Pawly"
+        granularity: round
+        poll_interval_seconds: 15
+
+    - id: on-chumeng-urgent
+      type: history_change
+      config:
+        peer: "初梦"
+        granularity: round
+        poll_interval_seconds: 15
+
+  statechart:
+    initial: watching
+    context:
+      last_notified_round: 0
+
+    states:
+      watching:
+        "on":
+          history_change:
+            target: watching
+            guard: "(peers.Pawly.history.last_inbound_contains('urgent:') || peers.初梦.history.last_inbound_contains('urgent:')) && event.new_round > context.last_notified_round"
+            actions:
+              - type: set_context
+                with:
+                  key: last_notified_round
+                  value: "{{event.new_round}}"
+              - type: log
+                with:
+                  level: info
+                  message: "[{{meta.name}}] round {{event.new_round}} from {{event.peer}} - sending alert"
+              - type: send_a2a
+                with:
+                  peer: main
+                  message:
+                    type: A2A_MESSAGE
+                    text: "🚨 {{event.peer}} 紧急: round {{event.new_round}}"
+
+  secrets: []
+
+  permissions:
+    network:
+      http_egress: ["localhost", "127.0.0.1"]
+      raw_socket: false
+    filesystem: []
+    subprocess: { allow: [] }
+    env: []
+    peers:
+      - id: main
+        allow_messages: ["*"]
+    timers: { max_concurrent: 1, min_interval_ms: 1000 }

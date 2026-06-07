@@ -102,7 +102,22 @@ def _action_log(action: dict, env: "EvalEnv") -> Awaitable[None]:
 
 def _action_set_context(action: dict, env: "EvalEnv") -> Awaitable[None]:
     for k, v in action["with"].items():
-        env.context[k] = render_template(v, env.as_dict())
+        rendered = render_template(v, env.as_dict())
+        # v1.4.4: try to preserve numeric type for guard comparisons
+        # (render_template always returns str; we coerce pure-digit/bool)
+        if isinstance(rendered, str):
+            s = rendered.strip()
+            if s in ("true", "false"):
+                rendered = (s == "true")
+            elif s.lstrip("-").isdigit():
+                rendered = int(s)
+            else:
+                try:
+                    f = float(s)
+                    rendered = int(f) if f.is_integer() else f
+                except ValueError:
+                    pass
+        env.context[k] = rendered
     return _noop()
 
 
@@ -329,7 +344,12 @@ class StatechartEngine:
             return
         if action_type == "send_a2a":
             peer = action["with"]["peer"]
-            text = render_template(action["with"]["message"], env.as_dict())
+            msg = action["with"]["message"]
+            # v1.4.4: support both v1.2 spec dict form {type, text} and bare string
+            if isinstance(msg, dict) and "text" in msg:
+                text = render_template(msg["text"], env.as_dict())
+            else:
+                text = render_template(msg, env.as_dict())
             await self._a2a_send(peer, text)
             return
         handler = ACTION_REGISTRY.get(action_type)
