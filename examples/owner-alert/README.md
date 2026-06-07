@@ -1,5 +1,7 @@
 # owner-alert — AgentWire-Cue Killer Example (v1.4.4)
 
+> ⚠️ **v1.4.4 scope**: This example is **validated by cue unit tests only** (9 tests in `tests/test_owner_alert.py`, all green). **End-to-end Telegram notification is OUT OF v1.4.4 scope** — that is OpenClaw main agent (初梦/ChuMeng)'s responsibility: cue emits `send_a2a` to peer `main`; the main agent's A2A→TG channel routing is owned by 初梦 and verified during her full-stack upgrade, not here.
+
 ## What is it?
 
 A complete, runnable cue plugin demonstrating **v1.4.3's new `history_change` trigger** and **`peers.X.history.last_inbound_contains()` expression** in a realistic scenario.
@@ -58,7 +60,7 @@ This plugin is unit-tested in `tests/test_owner_alert.py`:
 - ❌ OpenClaw main agent's A2A→TG channel routing
 - ❌ Production-grade retry / fallback for `send_a2a`
 
-These are owned by the main agent (初梦) and the user — not by the cue plugin author.
+These are owned by the main agent (初梦) and the user — not by the cue plugin author. The v1.4.4 acceptance scope is "cue unit tests only" (per master's 2026-06-06 拍板); end-to-end TG verification is deferred to the master full-stack upgrade.
 
 ## Plugin schema (v1.4.4 update)
 
