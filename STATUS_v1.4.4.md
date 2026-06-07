@@ -1,7 +1,7 @@
 # AgentWire-Cue v1.4.4 — Final Status
 
 > **Released**: 2026-06-07
-> **Tag**: `v1.4.4` (annotated; final SHA committed in task 32)
+> **Tag**: `v1.4.4` (annotated, commit `ddb72d4`)
 > **Owner**: 丝线 (SilkThread)
 > **Series**: v1.4.x FROZEN — see [CHANGELOG.md](CHANGELOG.md) header + [ROADMAP_v1.4.md](ROADMAP_v1.4.md) top
 > **Companion**: [agentwire-core v1.4.4](../../agentwire_core) (provides JSON-RPC + redaction)
@@ -43,7 +43,8 @@
 
 | 维度 | 数字 |
 |------|------|
-| **Tag** | `v1.4.4` (annotated) |
+| **Tag** | `v1.4.4` (annotated, commit `ddb72d4`) |
+| **Prior v1.4.3 SHA** | `2c1e083` (referenced for `CHANGELOG.md` linkage) |
 | **Commits** | 3 (feat + docs×2) |
 | **Files changed** | 5 modified (expression + statechart + examples/echo-with-persist 被 0 触动; ROADMAP 改; schema 改) + 7 new (owner-alert yaml+README, test_owner_alert, CHANGELOG, STATUS, designs/v1.4.3/, designs/v1.4.4/) |
 | **+ ~520 / -10 lines** | 主要在 tests/test_owner_alert.py + designs/v1.4.3/SPEC-PATCH |
