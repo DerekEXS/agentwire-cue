@@ -17,6 +17,18 @@ history JSON-RPC surface, redaction catalog, and Bearer-token auth.
 
 ---
 
+## [v1.4.5] - 2026-06-07
+
+### Changed
+- `STATUS_v1.4.4.md`: 真 SHA 校准 (tag `v1.4.4` commit `ddb72d4`) + prior v1.4.3 SHA `2c1e083` 引用; 修订 A2A 测试措辞 (同 core 仓)
+- `examples/owner-alert/README.md`: 顶部加粗体 "v1.4.4 scope" 提示块; "What's OUT of scope" 段加 deferral 路径 (v1.4.4 只验 cue 单测, 端到端 TG 归初梦全栈升级)
+
+### Notes
+- v1.4.5 is a **cleanup / spec-debt closure** release — 初梦 P1/P2 行动清单
+- v1.4.5 acceptance: 243 cue 单测全过 + leak scan 0 命中
+- v1.4.5 commit history (按初梦 P1 建议拆分): 2 commits (`75a830d` + `8ce3e03`)
+- v1.4.5 没新增 SPEC-PATCH — 因 v1.4.4 SPEC-PATCH 已含 v1.4.5 精神 (初梦 P2 措辞改, P3 对称补)
+
 ## [v1.4.4] - 2026-06-07
 
 ### Added
