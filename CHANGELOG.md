@@ -17,6 +17,23 @@ history JSON-RPC surface, redaction catalog, and Bearer-token auth.
 
 ---
 
+## [v1.4.6] - 2026-06-07
+
+### Security
+- `git filter-repo` re-writes history (HEAD: `3690ebf`) replacing `<REDACTED_AGENTWIRE_TOKEN>` (主人的 AGENTWIRE_TOKEN 真值) with `demo-token-REDACTED-v1.4.6` in all commits. Token leak in `STATUS_v1.4.2.md` (originally written as BUG-1 documentation showing the actual variable value) is **permanently removed from history**.
+- `git filter-repo` replaces `<REDACTED_USER_ALIAS>` (PII) with `用户` in `STATUS_v1.4.1.md` (originally written as a reviewer/team name in the "7 类红线 0 命中" annotation). Note: this PII was a 私有仓 internal reviewer code-name, not a 真凭据, but is replaced for hygiene in case cue 仓 ever goes public.
+
+### Documentation
+- `README.md` + `README_CN.md`: new **Deployment** section explicitly states HTTP-not-HTTPS limitation, lists loopback/LAN/VPN as suitable, public-internet as NOT suitable without TLS-terminating reverse proxy. Documents that **18801 A2A listener binds `0.0.0.0` by default** (architectural choice for LAN peer communication, unlike CORE 18800 which is loopback-default).
+
+### Notes
+- v1.4.6 is a **token leak closure + PII cleanup** release — all done via `git filter-repo` (历史重写), not a forward-commit
+- 14 commits re-written; all tag hashes updated (v1.4.2-v1.4.5)
+- `agentwire-core` 仓 v1.4.6 (separate release): `hmac.compare_digest` + 503 错误响应脱敏 + README TLS 警告 (3 项真问题修复)
+- cue 仓 v1.4.6: 0 行 code 改动 (纯历史清理 + 文档)
+- 243 cue 单测全过 (历史未变)
+- **强烈建议主人**: token 虽已在 cue 仓 history 清干净, 仍**轮换 `~/.openclaw/a2a-token.txt`**——任何已 clone cue 仓 v1.4.5 或之前的协作者本地仍可能有 token 备份
+
 ## [v1.4.5] - 2026-06-07
 
 ### Changed

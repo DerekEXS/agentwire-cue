@@ -221,6 +221,18 @@ agentwire-cue/
 - **A2A v1.0.1** —— <https://a2a-protocol.org/latest/specification/>
 - **JSON-RPC 2.0** —— <https://www.jsonrpc.org/specification>
 
+## 部署说明
+
+> ⚠️ **v1.4.6 部署提示**: AgentWire-Cue 使用明文 HTTP(非 HTTPS)。`Authorization: Bearer <token>` header 因此在网络上**明文传输**。**18801 A2A listener 默认绑 `0.0.0.0`**(LAN 可达,给 peer agent 用)——跟 CORE 18800 默认 loopback 不同。
+
+**适用于**: loopback、私有 LAN、Tailscale、WireGuard
+
+**不适用于**: 直接暴露公网
+
+**如必须暴露**: 18801 (A2A listener) + 19000 (admin API) 都需 TLS 终止反向代理 (nginx / Caddy / Traefik / Cloudflare Tunnel)。AgentWire-Cue 只绑 loopback,反向代理对外暴露公网端口。
+
+未来 release (v1.5+)可能加 `CUE_LISTEN_HOST` 环境变量(默认 `127.0.0.1`)让用户显式 opt-in loopback 绑定。
+
 ## 参考
 
 - [A2A 协议规范](https://a2a-protocol.org/latest/specification/)

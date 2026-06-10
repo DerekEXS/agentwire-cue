@@ -221,6 +221,18 @@ agentwire-cue/
 - **A2A v1.0.1** — <https://a2a-protocol.org/latest/specification/>
 - **JSON-RPC 2.0** — <https://www.jsonrpc.org/specification>
 
+## Deployment
+
+> ⚠️ **v1.4.6 deployment note**: AgentWire-Cue uses plain HTTP (not HTTPS). The `Authorization: Bearer <token>` header is therefore transmitted **in cleartext** on the wire. The 18801 A2A listener **binds `0.0.0.0` by default** (LAN-reachable for peer agents) — unlike CORE's 18800 which is loopback-default.
+
+**Suitable for**: loopback, private LAN, Tailscale, WireGuard
+
+**NOT suitable for**: direct public-internet exposure
+
+**If you must expose**: TLS-terminating reverse proxy (nginx / Caddy / Traefik / Cloudflare Tunnel) is REQUIRED for both 18801 (A2A listener) and 19000 (admin API). Bind AgentWire-Cue to loopback only; the proxy exposes the public port.
+
+A future release (v1.5+) may add `CUE_LISTEN_HOST` env var (default `127.0.0.1`) for opt-in loopback binding.
+
 ## References
 
 - [A2A Protocol Specification](https://a2a-protocol.org/latest/specification/)
