@@ -36,11 +36,11 @@ spec:
       description: "小爪 - QwenPaw @ 阿里云"
     初梦:
       uuid: "chumeng-demo-uuid"
-      url: "http://127.0.0.1:18800"
+      url: "http://agentwire-core:18800"
       description: "初梦 - OpenClaw @ 本地"
     main:
       uuid: "main-demo-uuid"
-      url: "http://127.0.0.1:18800"
+      url: "http://agentwire-core:18800"
       description: "主 agent 路由入口"
 
   triggers:
@@ -101,7 +101,7 @@ spec:
 
   permissions:
     network:
-      http_egress: ["localhost", "127.0.0.1"]
+      http_egress: ["localhost", "127.0.0.1", "agentwire-core"]
       raw_socket: false
     filesystem: []
     subprocess: { allow: [] }

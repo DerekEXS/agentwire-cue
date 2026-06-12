@@ -1,0 +1,66 @@
+services:
+  agentwire-core:
+    build:
+      context: ../agentwire_core
+    image: agentwire-core:v1.5.0
+    container_name: agentwire-core
+    ports:
+      - "${CORE_PORT:-18800}:18800"
+    volumes:
+      - core_history:/data/history
+      - core_peers:/data/peers
+    secrets:
+      - source: a2a-token
+        target: a2a-token.txt
+    environment:
+      - CORE_LISTEN_HOST=0.0.0.0
+      - CORE_LISTEN_PORT=18800
+      - AGENTWIRE_TOKEN_FILE=/run/secrets/a2a-token.txt
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18800/.well-known/agent.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  agentwire-cue:
+    build:
+      context: .
+    image: agentwire-cue:v1.5.3
+    container_name: agentwire-cue
+    ports:
+      - "${CUE_API_PORT:-18801}:18801"
+      - "${CUE_ADMIN_PORT:-19000}:19000"
+    volumes:
+      - ./examples:/plugins:ro
+      - cue_data:/data
+    secrets:
+      - source: a2a-token
+        target: a2a-token.txt
+      - source: cue-admin-token
+        target: cue-admin-token.txt
+    environment:
+      - CUE_CORE_URL=http://agentwire-core:18800
+      - CUE_ADMIN_TOKEN_FILE=/run/secrets/cue-admin-token.txt
+    healthcheck:
+      test: ["CMD", "python3", "-m", "agentwire_cue", "doctor", "--no-network", "--a2a-listener-port", "18801", "--admin-port", "19000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      agentwire-core:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  core_history:
+  core_peers:
+  cue_data:
+
+secrets:
+  a2a-token:
+    file: ./secrets/a2a-token.txt
+  cue-admin-token:
+    file: ./secrets/cue-admin-token.txt

@@ -27,7 +27,8 @@ venv/
 # ===== Sensitive local data =====
 .env
 .env.local
-secrets/
+secrets/*
+!secrets/.gitkeep
 secrets.yaml
 .private/
 .notes/
@@ -51,3 +52,9 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+
+# ===== Operator-local plugin overrides (v1.5.3) =====
+# Keeps local IP/uuid/peer values from leaking into commits.
+examples/**/*.local-backup
+examples/**/*.local.yaml

@@ -12,6 +12,22 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.5.3] - 2026-06-12
+
+### Added
+- Dockerfile for containerized CUE deployment on `python:3.13-slim`, running as non-root `agentwire` and exposing ports 18801 + 19000.
+- Runtime `requirements.txt` now includes `structlog`; Docker images use the structlog-backed observability path while local environments retain the stdlib fallback.
+- Top-level AgentWire Docker deployment files in the A2A workspace: compose, `.env.example`, secrets placeholder, and Chinese Docker guide.
+
+### Fixed
+- Scheduler-fired cron, A2A, and history-change triggers now update plugin `last_trigger_at`, `last_match`, `last_reason`, and `last_details`, so `/admin/status` reflects automatic triggers as well as admin-fired triggers.
+- Scheduler/admin-triggered transitions invalidate the shared history cache before guard evaluation, so freshly imported CORE history is visible to immediate owner-alert fires.
+- `examples/owner-alert/cue.yaml` is restored to demo placeholder peer UUIDs and uses the Docker Compose `agentwire-core` service URL for containerized E2E testing.
+
+### Tests
+- Added scheduler tracking regression coverage for automatic trigger bookkeeping, history-cache invalidation, and trace event emission.
+- Full CUE suite: 315 passed, 6 skipped.
+
 ## [v1.5.2] - 2026-06-12
 
 ### Added

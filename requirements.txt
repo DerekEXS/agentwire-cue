@@ -1,0 +1,8 @@
+# AgentWire-Cue runtime deps. The Docker image (v1.5.3+) installs from
+# this file. Dev environments can pip-install the same set; observability
+# falls back to stdlib JSON output when structlog is absent.
+aiohttp~=3.13.0
+ruamel.yaml~=0.18.0
+jsonschema~=4.21.0
+croniter~=2.0
+structlog~=24.1

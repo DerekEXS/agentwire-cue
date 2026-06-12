@@ -164,6 +164,52 @@ def register_action(name: str, handler: ActionHandler) -> None:
     ACTION_REGISTRY[name] = handler
 
 
+async def run_tracked_transition(plugin: Any, event: Event, *, source: str) -> "TransitionResult":
+    """v1.5.3: shared trigger wrapper used by admin handler and scheduler.
+
+    Generates a trace_id, emits ``cue.trigger.received`` /
+    ``cue.trigger.evaluated`` events, and updates ``plugin.last_*``
+    bookkeeping so ``/admin/status`` reflects scheduler-fired
+    transitions identically to admin-API-fired ones. ``source`` is
+    ``"admin_api"`` or one of ``"cron"`` / ``"a2a"`` / ``"history_change"``.
+
+    The caller still owns the underlying ``transition`` call's exception
+    handling — anything that raises here propagates out.
+    """
+    trace_id = observability.new_trace_id()
+    observability.set_trace_id(trace_id)
+    try:
+        observability.emit(
+            "cue.trigger.received",
+            plugin=getattr(plugin, "name", None),
+            event_type=event.type,
+            peer=event.payload.get("peer") if isinstance(event.payload, dict) else None,
+            source=source,
+        )
+        history_client = getattr(getattr(plugin, "statechart", None), "history_client", None)
+        if history_client is not None and hasattr(history_client, "invalidate"):
+            history_client.invalidate()
+        result = await plugin.statechart.transition(event)
+        try:
+            plugin.last_trigger_at = now_ms()
+            plugin.last_match = result.OK
+            plugin.last_reason = result.reason if not result.OK else None
+            plugin.last_details = result.details if not result.OK else None
+        except Exception:
+            pass
+        observability.emit(
+            "cue.trigger.evaluated",
+            plugin=getattr(plugin, "name", None),
+            event_type=event.type,
+            matched=result.OK,
+            reason=result.reason if not result.OK else None,
+            new_state=getattr(plugin.statechart, "current_state", None),
+        )
+        return result
+    finally:
+        observability.reset_trace_id()
+
+
 # ---------- EvalEnv (template guard context) ----------
 
 class EvalEnv:

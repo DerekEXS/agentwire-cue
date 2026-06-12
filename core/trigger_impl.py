@@ -117,11 +117,12 @@ class CronTrigger(Trigger):
             received_at_ms=int(time.time() * 1000),
         )
         try:
-            await self.plugin.statechart.transition(Event(
-                type=event.type,
-                payload=event.payload,
-                message_id=None,
-            ))
+            from .statechart import Event, run_tracked_transition
+            await run_tracked_transition(
+                self.plugin,
+                Event(type=event.type, payload=event.payload, message_id=None),
+                source='cron',
+            )
         except Exception as e:
             log.exception("cron trigger %s fire failed: %s", self.id, e)
 
@@ -173,11 +174,16 @@ class A2ATrigger(Trigger):
         if not self.matches(message):
             return
         try:
-            await self.plugin.statechart.transition(Event(
-                type=message.get('type', 'A2A_MESSAGE'),
-                payload={'message': message},
-                message_id=message.get('message_id'),
-            ))
+            from .statechart import Event, run_tracked_transition
+            await run_tracked_transition(
+                self.plugin,
+                Event(
+                    type=message.get('type', 'A2A_MESSAGE'),
+                    payload={'message': message},
+                    message_id=message.get('message_id'),
+                ),
+                source='a2a',
+            )
         except Exception as e:
             log.exception("a2a trigger %s fire failed: %s", self.id, e)
 
@@ -255,16 +261,21 @@ class HistoryChangeTrigger(Trigger):
 
     async def _fire(self, peer: str, prev_round: int, new_round: int, count: int) -> None:
         try:
-            await self.plugin.statechart.transition(Event(
-                type='history_change',
-                payload={
-                    'peer': peer,
-                    'prev_round': prev_round,
-                    'new_round': new_round,
-                    'new_count': count,
-                    'granularity': self.granularity,
-                },
-            ))
+            from .statechart import Event, run_tracked_transition
+            await run_tracked_transition(
+                self.plugin,
+                Event(
+                    type='history_change',
+                    payload={
+                        'peer': peer,
+                        'prev_round': prev_round,
+                        'new_round': new_round,
+                        'new_count': count,
+                        'granularity': self.granularity,
+                    },
+                ),
+                source='history_change',
+            )
         except Exception as e:
             log.exception("history_change trigger %s fire failed: %s", self.id, e)
 
