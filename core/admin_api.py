@@ -165,8 +165,16 @@ async def handle_trigger(request: web.Request) -> web.Response:
         message_id=body.get('message_id'),
     )
     result = await p.statechart.transition(event)
-    return web.json_response({
+    response = {
         'status': 'accepted',
         'new_state': p.statechart.current_state,
         'matched': result.OK,
-    })
+    }
+    if not result.OK:
+        response['reason'] = result.reason or ('error' if result.error else 'no_transition')
+        response['details'] = result.details or ({'error': result.error} if result.error else {})
+        log.info(
+            "admin trigger plugin=%s event=%s matched=false reason=%s details=%s",
+            name, event_type, response['reason'], response['details'],
+        )
+    return web.json_response(response)

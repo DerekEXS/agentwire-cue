@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -69,7 +70,6 @@ import os
 import pytest as _pytest
 _AGENTWIRE_INFRA_HOME = os.environ.get('AGENTWIRE_INFRA_HOME',
     "")
-)
 _AGENTWIRE_INFRA_ENABLED = os.environ.get('AGENTWIRE_INFRA') == '1'  # same as before
 
 _skip_unless_local = _pytest.mark.skipif(
@@ -144,7 +144,7 @@ class TestCLIShowsNewOptions:
         result = subprocess.run(
             [sys.executable, "-m", "agentwire_cue", "host", "--help"],
             capture_output=True, text=True,
-            cwd=os.environ.get("AGENTWIRE_WORKSPACE") or os.getcwd(),
+            cwd=os.environ.get("AGENTWIRE_WORKSPACE") or str(Path(__file__).resolve().parents[2]),
             env=dict(os.environ),  # inherit user env including PATH
         )
         # Help may exit 0 with help text, or exit 2 with error to stderr

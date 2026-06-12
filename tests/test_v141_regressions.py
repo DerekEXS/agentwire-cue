@@ -116,11 +116,12 @@ class TestBug3PortRetry:
         blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         blocker.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
         try:
-            blocker.bind(('127.0.0.1', 18801))
+            blocker.bind(('127.0.0.1', 0))
+            port = blocker.getsockname()[1]
             blocker.listen(1)
 
             async def test():
-                listener = A2AListener(host='127.0.0.1', port=18801)
+                listener = A2AListener(host='127.0.0.1', port=port)
                 import time
                 t0 = time.perf_counter()
                 try:

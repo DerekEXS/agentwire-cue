@@ -9,17 +9,32 @@ from __future__ import annotations
 from typing import Any
 
 
+class HistoryDiagnosticError(Exception):
+    def __init__(self, reason: str, message: str, **details):
+        super().__init__(message)
+        self.reason = reason
+        self.details = details
+        self.peer = details.get("peer")
+
+
 class _PeerHistoryProxy:
     """Returned by `peers.<name>.history`. Has methods that fetch via
     HistoryClient.
     """
 
-    def __init__(self, peer_meta: dict, client):
+    def __init__(self, peer_meta: dict, client, requested_peer: str | None = None):
         self._meta = peer_meta
         self._client = client
+        self._requested_peer = requested_peer
 
     def last(self, n: int = 5) -> list[dict]:
         """Return the last n rounds of messages for this peer (cached)."""
+        if not self._meta:
+            raise HistoryDiagnosticError(
+                "peer_not_found",
+                f"peer {self._requested_peer!r} not found",
+                peer=self._requested_peer,
+            )
         if self._client is None:
             return []
         return self._client.list_messages(self._meta.get("uuid") or self._meta.get("name"), limit=n)
@@ -39,6 +54,13 @@ class _PeerHistoryProxy:
     def last_inbound_contains(self, needle: str) -> bool:
         """True if any recent inbound message text contains `needle`."""
         msgs = self.last(5)
+        if not msgs:
+            raise HistoryDiagnosticError(
+                "history_empty",
+                f"peer {self._meta.get('name') or self._requested_peer!r} history is empty",
+                peer=self._meta.get("name") or self._requested_peer,
+                uuid=self._meta.get("uuid"),
+            )
         for m in msgs:
             if m.get("role") != "inbound":
                 continue
@@ -50,6 +72,13 @@ class _PeerHistoryProxy:
     def last_outbound_contains(self, needle: str) -> bool:
         """True if any recent outbound message text contains `needle`."""
         msgs = self.last(5)
+        if not msgs:
+            raise HistoryDiagnosticError(
+                "history_empty",
+                f"peer {self._meta.get('name') or self._requested_peer!r} history is empty",
+                peer=self._meta.get("name") or self._requested_peer,
+                uuid=self._meta.get("uuid"),
+            )
         for m in msgs:
             if m.get("role") != "outbound":
                 continue
@@ -62,15 +91,16 @@ class _PeerHistoryProxy:
 class _PeerProxy:
     """Returned by `peers.<name>`. Wraps peer metadata + history proxy."""
 
-    def __init__(self, peer_meta: dict, client):
+    def __init__(self, peer_meta: dict, client, requested_peer: str | None = None):
         self._meta = peer_meta
         self._client = client
+        self._requested_peer = requested_peer
 
     def __getattr__(self, item: str) -> Any:
         if item in ("name", "uuid", "last_round", "total_rounds", "last_ts"):
             return self._meta.get(item)
         if item == "history":
-            return _PeerHistoryProxy(self._meta, self._client)
+            return _PeerHistoryProxy(self._meta, self._client, self._requested_peer)
         return None
 
     def __bool__(self) -> bool:
@@ -96,15 +126,15 @@ class _PeersNamespace:
             raise AttributeError(name)
         meta = self._by_name.get(name)
         if meta is None:
-            return _PeerProxy({}, self._client)  # empty proxy, no history
-        return _PeerProxy(meta, self._client)
+            return _PeerProxy({}, self._client, name)
+        return _PeerProxy(meta, self._client, name)
 
     def get(self, name: str, default=None):
         """Dict-style access for the expression engine's _resolve_path."""
         meta = self._by_name.get(name)
         if meta is None:
             return default
-        return _PeerProxy(meta, self._client)
+        return _PeerProxy(meta, self._client, name)
 
     def __contains__(self, name: str) -> bool:
         return name in self._by_name

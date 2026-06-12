@@ -299,7 +299,9 @@ def evaluate(ast: dict, env: dict) -> Any:
         args = [evaluate(a, env) for a in ast["args"]]
         try:
             return method(*args)
-        except Exception:
+        except Exception as e:
+            if hasattr(e, "reason"):
+                raise
             return None
 
     if op == "cmp":

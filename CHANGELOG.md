@@ -17,6 +17,16 @@ history JSON-RPC surface, redaction catalog, and Bearer-token auth.
 
 ---
 
+## [v1.4.7] - 2026-06-12
+
+### Added
+- Admin trigger responses now include `reason` and `details` when `matched: false`.
+- Statechart guard diagnostics now distinguish `guard_false`, `guard_eval_error`, `peer_not_found`, and `history_empty`.
+- CUE logs now include matched-false diagnostic reason/details for admin-triggered evaluations.
+
+### Tests
+- Added regression coverage for statechart diagnostics and admin trigger JSON responses.
+
 ## [v1.4.6] - 2026-06-07
 
 ### Security

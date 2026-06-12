@@ -70,14 +70,16 @@ class TransitionResult:
     target: str | None = None
     no_transition: bool = False
     error: str | None = None
+    reason: str | None = None
+    details: dict = field(default_factory=dict)
 
     @classmethod
     def matched(cls, target: str) -> "TransitionResult":
         return cls(OK=True, target=target)
 
     @classmethod
-    def no_match(cls) -> "TransitionResult":
-        return cls(OK=False, no_transition=True)
+    def no_match(cls, reason: str | None = None, details: dict | None = None) -> "TransitionResult":
+        return cls(OK=False, no_transition=True, reason=reason, details=details or {})
 
     @classmethod
     def error(cls, message: str) -> "TransitionResult":
@@ -277,11 +279,29 @@ class StatechartEngine:
             if guard_str:
                 try:
                     ast = parse_expr(guard_str)
-                    if not evaluate(ast, env.as_dict()):
-                        continue
+                    actual_value = evaluate(ast, env.as_dict())
+                    if not actual_value:
+                        details = {
+                            "guard_expression": guard_str,
+                            "actual_value": actual_value,
+                        }
+                        log.info(
+                            "plugin=%s transition not matched reason=guard_false details=%s",
+                            self.plugin.name, details,
+                        )
+                        return TransitionResult.no_match("guard_false", details)
                 except Exception as e:  # parse or eval
-                    log.error("guard eval failed for %s: %s", self.plugin.name, e)
-                    return TransitionResult.no_match()
+                    details = {"guard_expression": guard_str, "error": str(e)}
+                    if hasattr(e, "details"):
+                        details.update(getattr(e, "details"))
+                    if hasattr(e, "peer"):
+                        details["peer"] = getattr(e, "peer")
+                    reason = getattr(e, "reason", "guard_eval_error")
+                    log.error(
+                        "guard eval failed for %s reason=%s details=%s",
+                        self.plugin.name, reason, details,
+                    )
+                    return TransitionResult.no_match(reason, details)
 
             target = t.get("target")
             if not target:

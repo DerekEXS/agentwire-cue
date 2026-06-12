@@ -23,7 +23,15 @@ from agentwire_cue.core.types import Plugin
 from agentwire_cue.core.statechart import (
     Event,
     StatechartEngine,
+    EvalEnv,
 )
+
+
+@pytest.fixture(autouse=True)
+def _restore_eval_env_as_dict():
+    original = EvalEnv.as_dict
+    yield
+    EvalEnv.as_dict = original
 
 
 # ---------- Fixtures ----------
