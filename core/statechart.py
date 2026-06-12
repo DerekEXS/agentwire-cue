@@ -134,6 +134,21 @@ async def _noop() -> None:
     return None
 
 
+def _render_metadata(metadata: Any, env_dict: dict) -> Any:
+    """v1.4.8: walk the metadata structure, render any string leaves through
+    the expression template engine. Non-string values (numbers, bools, lists,
+    dicts) are preserved. Returns a deep-copied structure that is safe to
+    forward to A2A without mutating the caller's spec.
+    """
+    if isinstance(metadata, str):
+        return render_template(metadata, env_dict)
+    if isinstance(metadata, list):
+        return [_render_metadata(item, env_dict) for item in metadata]
+    if isinstance(metadata, dict):
+        return {key: _render_metadata(value, env_dict) for key, value in metadata.items()}
+    return metadata
+
+
 # Registry: action_type -> handler. PR3 will register write_file/spawn_subprocess/
 # http_request and replace the reply_a2a/send_a2a stubs.
 ACTION_REGISTRY: dict[str, ActionHandler] = {
@@ -218,7 +233,7 @@ class StatechartEngine:
         self,
         plugin: Plugin,
         a2a_reply: Callable[[str, str], Awaitable[None]] | None = None,
-        a2a_send: Callable[[str, str], Awaitable[None]] | None = None,
+        a2a_send: Callable[..., Awaitable[None]] | None = None,
         from_fallback: bool = False,
         history_client=None,
     ) -> None:
@@ -238,8 +253,10 @@ class StatechartEngine:
         self.from_fallback = from_fallback
 
         # Action helpers (PR3 may replace these with A2A client wrappers)
+        # v1.4.8: a2a_send accepts a keyword `metadata`. The wrapper in host
+        # passes it through; older callers may ignore the kwarg.
         self._a2a_reply = a2a_reply or (lambda mid, text: _noop())
-        self._a2a_send = a2a_send or (lambda peer, text: _noop())
+        self._a2a_send = a2a_send or (lambda peer, text, metadata=None: _noop())
 
     # ----- public API -----
 
@@ -370,7 +387,16 @@ class StatechartEngine:
                 text = render_template(msg["text"], env.as_dict())
             else:
                 text = render_template(msg, env.as_dict())
-            await self._a2a_send(peer, text)
+            # v1.4.8: optional metadata (workflow_pointer etc.)
+            raw_metadata = action["with"].get("metadata")
+            rendered_metadata = None
+            if raw_metadata is not None:
+                rendered_metadata = _render_metadata(raw_metadata, env.as_dict())
+            # v1.4.8: invoke _a2a_send tolerating legacy 2-arg signatures.
+            try:
+                await self._a2a_send(peer, text, metadata=rendered_metadata)
+            except TypeError:
+                await self._a2a_send(peer, text)
             return
         handler = ACTION_REGISTRY.get(action_type)
         if handler is None:

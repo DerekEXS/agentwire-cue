@@ -122,6 +122,18 @@ class Host:
             a2a_url=self.a2a_url,
             token=self.a2a_token or '',
         )
+        # v1.4.8: aggregate peer alias tables across all loaded plugins. The
+        # aggregated map is installed on the shared HistoryClient. Plugins
+        # without peers: still load (legacy path). When no peer entries are
+        # aggregated at all, HistoryClient stays in the no-alias legacy mode.
+        aggregated_aliases: dict[str, dict] = {}
+        for p in self.plugins.values():
+            for alias, meta in (p.peers or {}).items():
+                aggregated_aliases[alias] = meta
+        if aggregated_aliases:
+            history_client.set_aliases(aggregated_aliases)
+            self.a2a_client.set_aliases(aggregated_aliases)
+            log.info("installed peer alias table: %s", sorted(aggregated_aliases.keys()))
         for p in self.plugins.values():
             if p.statechart is None:
                 p.statechart = StatechartEngine(p, history_client=history_client)
@@ -157,15 +169,18 @@ class Host:
         return reply
 
     def _wrap_send(self, plugin):
-        async def send(peer: str, text: str):
-            log.info("[%s] send_a2a to %s: %s", plugin.name, peer, text[:80])
-            result = await self.a2a_client.send_message(peer, {'text': text})
+        async def send(peer: str, text: str, metadata=None):
+            log.info("[%s] send_a2a to %s: %s (metadata_keys=%s)", plugin.name, peer, text[:80],
+                     sorted(metadata.keys()) if isinstance(metadata, dict) else None)
+            result = await self.a2a_client.send_message(
+                peer, {'text': text}, metadata=metadata,
+            )
             if result.value == 'exhausted':
                 log.warning("[%s] send_a2a exhausted, dispatching fallback", plugin.name)
                 from .statechart import Event
                 ev = Event(
                     type='A2A_EXHAUSTED',
-                    payload={'target_peer': peer, 'text': text},
+                    payload={'target_peer': peer, 'text': text, 'metadata': metadata},
                 )
                 await self.fallback_dispatcher.dispatch(plugin, ev)
         return send
@@ -174,10 +189,20 @@ class Host:
         """v1.3.1 patch 2 D2 + v1.4 §2.1.1: 启动期 <500ms SLO."""
         from .history_client import HistoryClient
         from .trigger_impl import HistoryChangeTrigger
+        # v1.4.8: reuse the same HistoryClient (with peer alias table) that
+        # was injected into statecharts so trigger polls resolve "Pawly" to
+        # the configured uuid. A second client would lack the alias map and
+        # emit spurious peer_not_found diagnostics.
         history_client = HistoryClient(
             a2a_url=self.a2a_url,
             token=self.a2a_token or '',
         )
+        aggregated_aliases: dict[str, dict] = {}
+        for p in self.plugins.values():
+            for alias, meta in (p.peers or {}).items():
+                aggregated_aliases[alias] = meta
+        if aggregated_aliases:
+            history_client.set_aliases(aggregated_aliases)
         all_triggers = []
         for p in self.plugins.values():
             for t_def in p.triggers:

@@ -47,3 +47,6 @@ class Plugin:
     secrets: dict = field(default_factory=dict)
     triggers: list[Trigger] = field(default_factory=list)
     source_path: Path | None = None
+    # v1.4.8: peer alias table. Keyed by alias name (e.g. "Pawly"),
+    # values are dicts containing at minimum {"uuid": "...", "url": "..."}.
+    peers: dict = field(default_factory=dict)

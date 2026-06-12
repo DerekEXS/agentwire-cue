@@ -190,6 +190,13 @@ class A2AClient:
         self.peer_cache = peer_cache
         self.retry_policy = retry_policy or RetryPolicy()
         self._session: aiohttp.ClientSession | None = None
+        # v1.4.8: peer alias table. When non-empty, the alias URL is used
+        # directly for routing and the peer card cache is bypassed.
+        self._aliases: dict[str, dict] = {}
+
+    def set_aliases(self, aliases: dict[str, dict]) -> None:
+        """v1.4.8: install the peer alias table for direct URL routing."""
+        self._aliases = dict(aliases)
 
     async def _ensure_session(self) -> aiohttp.ClientSession:
         if self._session is None:
@@ -211,12 +218,18 @@ class A2AClient:
     async def _resolve_peer_url(self, peer_id: str) -> str | None:
         """Use peer card cache to find peer's a2a URL. None if not discoverable.
 
+        v1.4.8: when an alias table is configured and `peer_id` matches an
+        alias, the configured url is used directly (no peer card fetch).
+
         Special case: peer_id == "self" returns the OWN a2a_url (for testing
         loopback to the same host's 18801 listener). The A2A listener on this
         host will then route the inbound message to the right plugin.
         """
         if peer_id == "self":
             return self.a2a_url
+        alias = self._aliases.get(peer_id)
+        if alias is not None:
+            return alias["url"]
         if self.peer_cache is None:
             return None
         card = await self.peer_cache.get(peer_id, peer_url=self.a2a_url)
@@ -233,11 +246,15 @@ class A2AClient:
         message: dict,
         *,
         permission_check: Callable[[], bool] | None = None,
+        metadata: dict | None = None,
     ) -> SendResult:
         """D1: caller 编排. 返 SendResult, 不内置 fallback.
 
         permission_check: optional callable to check §8 peer allow-list.
         If provided and returns False, returns PERMISSION_DENIED immediately.
+
+        v1.4.8: `metadata` is attached to the outbound `message.metadata`
+        field. It is forwarded to CORE only when not None.
         """
         # Permission check (caller-supplied, not coupled to enforcer)
         if permission_check is not None and not permission_check():
@@ -247,6 +264,12 @@ class A2AClient:
         peer_url = await self._resolve_peer_url(target_peer)
         if peer_url is None:
             return SendResult.FAILED
+
+        # v1.4.8: attach metadata to outbound message without mutating the
+        # caller's dict (callers may reuse the same dict).
+        outbound_message = dict(message)
+        if metadata is not None:
+            outbound_message["metadata"] = metadata
 
         # Retry loop
         async def _do_send() -> SendResult:
@@ -262,7 +285,7 @@ class A2AClient:
                     'jsonrpc': '2.0',
                     'id': f"cue-{now_ms()}",
                     'method': 'message/send',
-                    'params': {'message': message},
+                    'params': {'message': outbound_message},
                 }
                 async with session.post(url, json=payload) as resp:
                     if resp.status == 200:

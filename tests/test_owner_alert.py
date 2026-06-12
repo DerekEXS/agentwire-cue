@@ -168,7 +168,7 @@ def test_yaml_load_and_schema_validate():
     p = load_plugin(OWNER_ALERT_YAML)
     assert p is not None, "owner-alert.yaml failed to load (schema mismatch?)"
     assert p.name == "owner-alert"
-    assert p.version == "1.4.4"
+    assert p.version == "1.4.8"
 
 
 def test_two_history_change_triggers_registered():

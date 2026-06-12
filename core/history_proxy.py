@@ -120,6 +120,34 @@ class _PeersNamespace:
             return
         self._snapshot = self._client.list_peers()
         self._by_name = {p.get("name") or p.get("uuid"): p for p in self._snapshot}
+        # v1.4.8: merge configured peer aliases into the namespace so
+        # expression lookups like `peers.Pawly` resolve to a populated
+        # meta dict regardless of what CORE returned in messages/peers.
+        # Aliases that match an existing snapshot entry by uuid get the
+        # alias name added as an additional key for direct lookup.
+        aliases = getattr(self._client, "_aliases", None) or {}
+        for alias_name, alias_meta in aliases.items():
+            alias_uuid = alias_meta.get("uuid")
+            # Find the snapshot entry this alias points at (by uuid or
+            # fallback name), so the alias inherits real peer metadata.
+            target_meta = None
+            for p in self._snapshot:
+                if alias_uuid and p.get("uuid") == alias_uuid:
+                    target_meta = p
+                    break
+            if target_meta is None:
+                # No real peer in snapshot — synthesize a meta dict that
+                # the alias will use. The HistoryClient's list_messages
+                # call will route through `_resolve_alias` and return
+                # [] if the peer truly has no history.
+                target_meta = {
+                    "name": alias_name,
+                    "uuid": alias_uuid,
+                    "last_round": 0,
+                    "total_rounds": 0,
+                    "last_ts": None,
+                }
+            self._by_name[alias_name] = dict(target_meta, name=alias_name)
 
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_"):

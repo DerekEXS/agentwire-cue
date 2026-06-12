@@ -36,6 +36,39 @@ class HistoryClient:
         self.timeout = timeout_seconds
         self._cache: dict[tuple, tuple[float, Any]] = {}
         self._lock = RLock()
+        # v1.4.8: optional peer alias table. Keyed by alias name (e.g. "Pawly")
+        # to a dict containing at least {"uuid": "...", "url": "..."}.
+        # When empty, peer strings are forwarded to CORE as-is (legacy behavior).
+        self._aliases: dict[str, dict] = {}
+
+    def set_aliases(self, aliases: dict[str, dict]) -> None:
+        """v1.4.8: install peer alias table. Invalidates the cache so previously
+        cached (wrong-uuid) history lookups are re-fetched.
+        """
+        with self._lock:
+            self._aliases = dict(aliases)
+            self._cache.clear()
+
+    def _resolve_alias(self, peer: str) -> str:
+        """v1.4.8: map an alias to its CORE peer uuid. Falls back to the
+        raw `peer` string when the alias table is empty or the peer is not
+        configured. Raises HistoryDiagnosticError when the alias table is set
+        but the peer is unknown — this is the v1.4.7 trigger diagnostic path.
+        """
+        if not self._aliases:
+            return peer
+        meta = self._aliases.get(peer)
+        if meta is None:
+            for alias_meta in self._aliases.values():
+                if alias_meta.get("uuid") == peer:
+                    return peer
+            from .history_proxy import HistoryDiagnosticError
+            raise HistoryDiagnosticError(
+                "peer_not_found",
+                f"peer {peer!r} not in configured aliases",
+                peer=peer,
+            )
+        return meta["uuid"]
 
     def _rpc(self, method: str, params: dict) -> dict:
         body = json.dumps({
@@ -80,13 +113,18 @@ class HistoryClient:
     def list_messages(
         self, peer: str, limit: int = 5, since_round: int = 0
     ) -> list[dict]:
-        """Return recent messages for `peer` (uuid or display name)."""
-        key = ("list", peer, limit, since_round)
+        """Return recent messages for `peer` (uuid or display name).
+
+        v1.4.8: when a peer alias table is configured, the alias is resolved
+        to its uuid before contacting CORE.
+        """
+        target = self._resolve_alias(peer)
+        key = ("list", target, limit, since_round)
         cached = self._get_cached(key)
         if cached is not None:
             return cached
         result = self._rpc("messages/list", {
-            "peer_uuid": peer,
+            "peer_uuid": target,
             "limit": limit,
             "since_round": since_round,
         })
@@ -105,12 +143,13 @@ class HistoryClient:
         return peers
 
     def get_round(self, peer: str, round_n: int) -> list[dict]:
-        key = ("get", peer, round_n)
+        target = self._resolve_alias(peer)
+        key = ("get", target, round_n)
         cached = self._get_cached(key)
         if cached is not None:
             return cached
         result = self._rpc("messages/get", {
-            "peer_uuid": peer,
+            "peer_uuid": target,
             "round": round_n,
         })
         msgs = result.get("messages", [])

@@ -1,7 +1,7 @@
 apiVersion: agentwire/v1.2
 kind: plugin
 
-# v1.4.4 example: owner-alert
+# v1.4.4 → v1.4.8 example: owner-alert
 # 用途: Pawly/初梦 任一 peer 收到含 urgent: 关键词 → send_a2a 给主 agent (初梦) 路由
 # 演示: v1.4.3 history_change trigger + peers.X.history.last_inbound_contains() 表达式
 #
@@ -13,16 +13,32 @@ kind: plugin
 #     + set_context 记录已告警 round
 #     效果: 仅每个新 round 告警一次
 #
-# 验收: cue 单测 (v1.4.4 scope)
-#   端到端 TG 通知由初梦 OpenClaw 配 A2A→TG channel 路由 (v1.4.4 scope 外)
+# v1.4.8: peer alias table. cue.yaml 写 peer: "Pawly"，CUE 通过 peers.Pawly.uuid
+# 解析为 CORE 的真实 peer uuid，history 查询才能命中。workflow_pointer 在
+# send_a2a metadata 中透传，接收方可通过 message.metadata 读到工作流上下文。
+#
+# 验收: cue 单测 + 本地 CORE 端到端 (v1.4.8 scope)
+#   端到端 TG 通知由初梦 OpenClaw 配 A2A→TG channel 路由 (v1.4.8 scope 外)
 # 用法: cue host --plugin-dir examples/ --admin-token=xxx
 
 metadata:
   name: owner-alert
-  version: 1.4.4
-  description: "v1.4.4 killer example. 监听 Pawly/初梦 history; 含 urgent: 关键词时路由给主 agent. v1.4.4 fix: 自循环去重避免 spamming."
+  version: 1.4.8
+  description: "v1.4.8 killer example. 监听 Pawly/初梦 history; 含 urgent: 关键词时路由给主 agent. v1.4.8: peers alias 解析 + workflow_pointer metadata 透传."
 
 spec:
+  # v1.4.8: explicit peer alias table. uuid 是 CORE history 的真实 peer uuid;
+  # url 是 A2A send 路由目标。当未配置时 CUE 保留 legacy 行为（把 name 当 uuid 发 CORE）。
+  peers:
+    Pawly:
+      uuid: "pawly-demo-uuid"
+      url: "http://pawly.example.invalid:18800"
+      description: "小爪 - QwenPaw @ 阿里云"
+    初梦:
+      uuid: "chumeng-demo-uuid"
+      url: "http://127.0.0.1:18800"
+      description: "初梦 - OpenClaw @ 本地"
+
   triggers:
     - id: on-pawly-urgent
       type: history_change
@@ -64,6 +80,18 @@ spec:
                   message:
                     type: A2A_MESSAGE
                     text: "🚨 {{event.peer}} 紧急: round {{event.new_round}}"
+                  # v1.4.8: workflow_pointer 透传到对方 history.metadata
+                  metadata:
+                    workflow_pointer:
+                      workflow_file: "00_初梦工作流_完整版.yaml"
+                      workflow_version: "v3.0"
+                      current_step: "step_5_review_urgent"
+                      next_action: "review_and_approve"
+                      next_agent: "main"
+                      human_in_the_loop: true
+                    alert:
+                      severity: "high"
+                      source_peer: "{{event.peer}}"
 
   secrets: []
 

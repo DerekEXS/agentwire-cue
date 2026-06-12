@@ -270,12 +270,16 @@ def load_plugin(plugin_path: Path) -> Plugin | None:
         # Permission registration — 5 categories (PR3 fleshes out enforcer)
         permissions = spec.get("permissions", {})
 
+        # v1.4.8: peer alias table (optional)
+        peers = spec.get("peers", {}) or {}
+
         triggers = _extract_triggers(spec)
 
         log.info(
-            "loaded plugin %s v%s (apiVersion=%s, triggers=%d, persist=%s)",
+            "loaded plugin %s v%s (apiVersion=%s, triggers=%d, persist=%s, peers=%d)",
             name, version, api_version, len(triggers),
             str(resolved_path) if resolved_path else "(none)",
+            len(peers),
         )
 
         return Plugin(
@@ -289,6 +293,7 @@ def load_plugin(plugin_path: Path) -> Plugin | None:
             secrets=secrets,
             triggers=triggers,
             source_path=plugin_path,
+            peers=peers,
         )
     except LoaderError as e:
         log.error("failed to load plugin %s: %s", plugin_path, e)

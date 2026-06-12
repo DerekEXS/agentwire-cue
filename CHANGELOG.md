@@ -17,6 +17,19 @@ history JSON-RPC surface, redaction catalog, and Bearer-token auth.
 
 ---
 
+## [v1.4.8] - 2026-06-12
+
+### Added
+- `spec.peers`: optional peer alias table with explicit `uuid` + `url`, used for stable history lookup and direct A2A routing.
+- `HistoryClient`: resolves configured peer aliases to CORE peer UUIDs before `messages/list` / `messages/get` calls while preserving legacy behavior when no aliases are configured.
+- `A2AClient.send_message`: accepts optional `metadata` and forwards it as `message.metadata`.
+- `send_a2a` statechart action: supports optional `metadata` blocks and renders template strings inside metadata.
+- `examples/owner-alert/cue.yaml`: upgraded to v1.4.8 with `peers` aliases and `workflow_pointer` metadata.
+
+### Tests
+- Added regression coverage for peer alias loading, alias-to-uuid history lookup, direct alias URL routing, send_a2a metadata, and metadata template rendering.
+- Full CUE suite: 270 passed, 6 skipped.
+
 ## [v1.4.7] - 2026-06-12
 
 ### Added

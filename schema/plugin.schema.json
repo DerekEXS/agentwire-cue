@@ -88,6 +88,20 @@
         },
         "permissions": {
           "$ref": "#/$defs/permissions"
+        },
+        "peers": {
+          "type": "object",
+          "description": "v1.4.8: peer alias table. Keyed by alias name. uuid and url are required; description is optional.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["uuid", "url"],
+            "additionalProperties": false,
+            "properties": {
+              "uuid": { "type": "string", "minLength": 1 },
+              "url": { "type": "string", "minLength": 1 },
+              "description": { "type": "string" }
+            }
+          }
         }
       }
     }
