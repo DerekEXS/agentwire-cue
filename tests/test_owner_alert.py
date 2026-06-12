@@ -168,7 +168,14 @@ def test_yaml_load_and_schema_validate():
     p = load_plugin(OWNER_ALERT_YAML)
     assert p is not None, "owner-alert.yaml failed to load (schema mismatch?)"
     assert p.name == "owner-alert"
-    assert p.version == "1.4.8"
+    assert p.version == "1.5.0"
+
+
+def test_owner_alert_demo_has_main_peer_alias():
+    p = load_plugin(OWNER_ALERT_YAML)
+    assert p is not None
+    assert "main" in p.peers
+    assert p.peers["main"]["url"] == "http://127.0.0.1:18800"
 
 
 def test_two_history_change_triggers_registered():

@@ -5,6 +5,25 @@ All notable changes to AgentWire-Cue are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.5.x series (2026-06)
+
+The v1.5 series validates the workflow-pointer handoff path on top of CORE
+metadata persistence and CUE peer aliases.
+
+---
+
+## [v1.5.0] - 2026-06-12
+
+### Added
+- A2A send payloads now normalize CUE `{text: ...}` shorthand into A2A-compatible `role` + `parts`, preventing empty-message history entries.
+- Agent Card version now reports `1.5.0` instead of stale `1.4.0`.
+- `examples/owner-alert/cue.yaml`: upgraded to v1.5.0 and includes a `main` peer alias plus workflow-pointer metadata.
+
+### Tests
+- Added v1.5.0 regression coverage for send payload normalization and Agent Card version.
+- Full CUE suite: 274 passed, 6 skipped.
+- Manual workflow-pointer E2E: seeded urgent history → owner-alert matched true → `send_a2a` stored non-empty parts and `metadata.workflow_pointer` in CORE history.
+
 ## v1.4.x series (2026-06 — FROZEN)
 
 The v1.4 series brings AgentWire-Cue to production readiness on top of A2A v1.0.1:

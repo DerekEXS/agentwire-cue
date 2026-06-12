@@ -66,7 +66,10 @@ async def test_send_message_uses_alias_url_directly():
     assert result == SendResult.SUCCESS
     assert captured["url"] == "http://pawly.example.invalid:18800/a2a/jsonrpc"
     assert captured["payload"]["method"] == "message/send"
-    assert captured["payload"]["params"]["message"] == {"text": "hi"}
+    assert captured["payload"]["params"]["message"] == {
+        "role": "user",
+        "parts": [{"type": "text", "text": "hi"}],
+    }
 
 
 @pytest.mark.asyncio

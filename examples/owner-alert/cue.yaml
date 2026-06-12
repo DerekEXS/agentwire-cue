@@ -23,8 +23,8 @@ kind: plugin
 
 metadata:
   name: owner-alert
-  version: 1.4.8
-  description: "v1.4.8 killer example. 监听 Pawly/初梦 history; 含 urgent: 关键词时路由给主 agent. v1.4.8: peers alias 解析 + workflow_pointer metadata 透传."
+  version: 1.5.0
+  description: "v1.5.0 killer example. 监听 Pawly/初梦 history; 含 urgent: 关键词时路由给主 agent. v1.5.0: workflow_pointer E2E + peers alias 解析 + metadata 透传."
 
 spec:
   # v1.4.8: explicit peer alias table. uuid 是 CORE history 的真实 peer uuid;
@@ -38,6 +38,10 @@ spec:
       uuid: "chumeng-demo-uuid"
       url: "http://127.0.0.1:18800"
       description: "初梦 - OpenClaw @ 本地"
+    main:
+      uuid: "main-demo-uuid"
+      url: "http://127.0.0.1:18800"
+      description: "主 agent 路由入口"
 
   triggers:
     - id: on-pawly-urgent

@@ -33,6 +33,7 @@ from .sandbox import (
 )
 
 log = logging.getLogger("agentwire_cue.a2a_client")
+CUE_VERSION = "1.5.0"
 
 
 def now_ms() -> int:
@@ -265,9 +266,14 @@ class A2AClient:
         if peer_url is None:
             return SendResult.FAILED
 
-        # v1.4.8: attach metadata to outbound message without mutating the
-        # caller's dict (callers may reuse the same dict).
+        # v1.5.0: normalize the small CUE action shorthand {text: "..."}
+        # into an A2A-compatible message so CORE records non-empty parts.
         outbound_message = dict(message)
+        if "parts" not in outbound_message and isinstance(outbound_message.get("text"), str):
+            outbound_message = {
+                "role": outbound_message.get("role", "user"),
+                "parts": [{"type": "text", "text": outbound_message["text"]}],
+            }
         if metadata is not None:
             outbound_message["metadata"] = metadata
 
@@ -385,7 +391,7 @@ class A2AListener:
             'protocolVersion': '1.0.1',
             'name': 'agentwire-cue',
             'description': f'Host with {len(self._plugins_info)} plugins',
-            'version': '1.4.0',
+            'version': CUE_VERSION,
             'capabilities': {
                 'streaming': False,
                 'pushNotifications': False,
