@@ -50,3 +50,9 @@ class Plugin:
     # v1.4.8: peer alias table. Keyed by alias name (e.g. "Pawly"),
     # values are dicts containing at minimum {"uuid": "...", "url": "..."}.
     peers: dict = field(default_factory=dict)
+    # v1.5.2: cross-plugin dependency block. Optional sub-keys are
+    # ``plugins`` / ``peers`` / ``capabilities``. ``degraded`` flips to
+    # True when ``Host._check_requires`` finds any missing dependency.
+    requires: dict = field(default_factory=dict)
+    degraded: bool = False
+    degraded_reason: str | None = None

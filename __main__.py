@@ -204,6 +204,52 @@ def cmd_host(args: argparse.Namespace) -> int:
         return 130
 
 
+# ---------- doctor (v1.5.2) ----------
+
+def _format_doctor_line(r) -> str:
+    icons = {"ok": "OK  ", "warn": "WARN", "fail": "FAIL"}
+    return f"{icons.get(r.status, '?   ')} {r.name}: {r.message}"
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """v1.5.2: print a deployment-health report.
+
+    The doctor never fails the process based on individual checks; it
+    exits 0 unless something went catastrophically wrong while collecting
+    results (e.g. plugin loading raised). All other findings are
+    surfaced as WARN/FAIL lines for an operator to read.
+    """
+    from . import __version__
+    from .core import doctor as doctor_mod
+
+    print(f"AgentWire CUE Doctor v{__version__}")
+    print("=" * 32)
+
+    if args.a2a_token_file:
+        print(_format_doctor_line(doctor_mod.check_token_file(Path(args.a2a_token_file))))
+    if args.admin_token_file:
+        print(_format_doctor_line(doctor_mod.check_token_file(Path(args.admin_token_file))))
+
+    if not args.no_network:
+        print(_format_doctor_line(doctor_mod.check_core_reachable(args.a2a_url)))
+
+    print(_format_doctor_line(doctor_mod.check_port_available(args.a2a_listener_port)))
+    print(_format_doctor_line(doctor_mod.check_port_available(args.admin_port)))
+
+    print(_format_doctor_line(doctor_mod.check_proxy_env()))
+
+    if args.plugin_dir:
+        plugin_dir = Path(args.plugin_dir)
+        if not args.no_network:
+            for r in doctor_mod.check_peers_reachable(
+                doctor_mod.collect_peers_from_plugins(plugin_dir),
+            ):
+                print(_format_doctor_line(r))
+        print(_format_doctor_line(doctor_mod.check_plugin_dependencies(plugin_dir)))
+
+    return 0
+
+
 # ---------- entry point ----------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -238,6 +284,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_ver = sub.add_parser("version", help="print host version")
     p_ver.set_defaults(func=lambda _: (print(f"agentwire-cue {__version__}"), 0)[1])
+
+    p_doc = sub.add_parser("doctor", help="v1.5.2 deployment health checks")
+    p_doc.add_argument("--plugin-dir", default=None, type=Path,
+                       help="directory of plugin yaml files (enables plugin-dep + peer checks)")
+    p_doc.add_argument("--a2a-url", default="http://127.0.0.1:18800",
+                       help="AGENTWIRE CORE base URL to probe")
+    p_doc.add_argument("--a2a-token-file", default=None,
+                       help="optional: validate this token file for BOM/CRLF")
+    p_doc.add_argument("--admin-token-file", default=None,
+                       help="optional: validate this admin token file for BOM/CRLF")
+    p_doc.add_argument("--a2a-listener-port", type=int, default=18801,
+                       help="A2A listener port to probe (default 18801)")
+    p_doc.add_argument("--admin-port", type=int, default=19000,
+                       help="admin API port to probe (default 19000)")
+    p_doc.add_argument("--no-network", action="store_true",
+                       help="skip CORE and peer reachability probes")
+    p_doc.set_defaults(func=cmd_doctor)
 
     return parser
 

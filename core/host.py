@@ -26,6 +26,12 @@ from .trigger_impl import A2ATrigger, CronTrigger
 
 log = logging.getLogger("agentwire_cue.host")
 
+# v1.5.2: capabilities the host can attest its companion CORE supports.
+# Today CORE v1.4.8+ ships ``metadata`` end-to-end (message metadata is
+# stored in history and exposed back via /messages/get). When CORE adds
+# new capabilities, append the name here and bump cue's tested CORE pin.
+KNOWN_CAPABILITIES = frozenset({"metadata"})
+
 
 def now_ms() -> int:
     return _now_ms()
@@ -96,6 +102,15 @@ class Host:
             log.warning("duplicate plugin names detected: %d loaded, %d unique",
                         len(plugins_list), len(self.plugins))
         log.info("loaded %d plugins: %s", len(self.plugins), list(self.plugins.keys()))
+
+        # v1.5.2: cross-plugin dependency check (fail-soft per plugin).
+        # Plugins missing dependencies are marked degraded and excluded
+        # from trigger registration below.
+        self._check_requires()
+        degraded_names = [p.name for p in self.plugins.values() if getattr(p, 'degraded', False)]
+        if degraded_names:
+            log.error("%d plugins degraded (triggers will not be registered): %s",
+                      len(degraded_names), sorted(degraded_names))
 
         # 4. Setup enforcer + wire a2a client + peer cache
         from .actions import install, install_actions
@@ -168,6 +183,45 @@ class Host:
             log.info("[%s] reply to %s: %s", plugin.name, message_id, text[:80])
         return reply
 
+    def _check_requires(self) -> None:
+        """v1.5.2: validate cross-plugin dependencies and mark misses degraded.
+
+        Aggregates the set of loaded plugin names and the union of all
+        peer aliases declared in ``spec.peers`` blocks. For each plugin
+        with a non-empty ``requires`` block, any missing entry flips
+        ``degraded`` to True and writes a comma-joined reason. Multiple
+        missing entries across different categories are reported in one
+        ``degraded_reason`` so the operator can fix everything in one
+        pass instead of restarting the host per error.
+        """
+        loaded_plugins = set(self.plugins.keys())
+        loaded_peers: set[str] = set()
+        for p in self.plugins.values():
+            loaded_peers.update((getattr(p, 'peers', {}) or {}).keys())
+
+        for p in self.plugins.values():
+            req = getattr(p, 'requires', {}) or {}
+            if not req:
+                continue
+            reasons: list[str] = []
+            for dep in req.get('plugins', []) or []:
+                if dep == p.name:
+                    continue
+                if dep not in loaded_plugins:
+                    reasons.append(f"plugin {dep!r} not loaded")
+            for peer in req.get('peers', []) or []:
+                if peer not in loaded_peers:
+                    reasons.append(f"peer alias {peer!r} not configured")
+            for cap in req.get('capabilities', []) or []:
+                if cap not in KNOWN_CAPABILITIES:
+                    reasons.append(f"capability {cap!r} not supported by host")
+            if reasons:
+                p.degraded = True
+                p.degraded_reason = "; ".join(reasons)
+                log.error(
+                    "plugin %s degraded: %s", p.name, p.degraded_reason,
+                )
+
     def _wrap_send(self, plugin):
         async def send(peer: str, text: str, metadata=None):
             log.info("[%s] send_a2a to %s: %s (metadata_keys=%s)", plugin.name, peer, text[:80],
@@ -216,6 +270,8 @@ class Host:
             history_client.set_aliases(aggregated_aliases)
         all_triggers = []
         for p in self.plugins.values():
+            if getattr(p, 'degraded', False):
+                continue
             for t_def in p.triggers:
                 ttype = t_def.type
                 if ttype == 'cron':

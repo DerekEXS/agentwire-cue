@@ -12,6 +12,19 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.5.2] - 2026-06-12
+
+### Added
+- `spec.requires` block on plugin manifests with optional `plugins`, `peers`, and `capabilities` lists.
+- `Host._check_requires`: at startup, after all plugins load, marks any plugin with an unmet dependency as `degraded` (with a comma-joined human-readable `degraded_reason`). Degraded plugins remain loaded but their triggers are NOT registered, so the rest of the host still boots and `/admin/status` keeps surfacing them.
+- Schema (`schema/plugin.schema.json`) now accepts `spec.requires`.
+- `agentwire-cue doctor` CLI subcommand. Surface today's silent-failure modes: token-file BOM/CRLF, CORE reachability, peer reachability, port conflicts (18801 / 19000), proxy env vars, and plugin dependency completeness. `--no-network` skips the HTTP probes for offline use.
+- Package `__version__` corrected from stale `1.3.0` to `1.5.2` so `agentwire-cue doctor` reports the right version header.
+
+### Tests
+- Added v1.5.2 coverage for `requires` extraction, `_check_requires` (plugin / peer / capability misses + satisfied case), each doctor check function, and the CLI integration of the doctor command.
+- Full CUE suite: 311 passed, 6 skipped.
+
 ## [v1.5.1] - 2026-06-12
 
 ### Fixed

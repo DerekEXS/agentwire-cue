@@ -273,6 +273,9 @@ def load_plugin(plugin_path: Path) -> Plugin | None:
         # v1.4.8: peer alias table (optional)
         peers = spec.get("peers", {}) or {}
 
+        # v1.5.2: cross-plugin dependency block (optional)
+        requires = spec.get("requires", {}) or {}
+
         triggers = _extract_triggers(spec)
 
         log.info(
@@ -294,6 +297,7 @@ def load_plugin(plugin_path: Path) -> Plugin | None:
             triggers=triggers,
             source_path=plugin_path,
             peers=peers,
+            requires=requires,
         )
     except LoaderError as e:
         log.error("failed to load plugin %s: %s", plugin_path, e)

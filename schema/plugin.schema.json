@@ -102,6 +102,25 @@
               "description": { "type": "string" }
             }
           }
+        },
+        "requires": {
+          "type": "object",
+          "description": "v1.5.2: cross-plugin dependency declaration. Optional sub-blocks: plugins (other CUE plugin names), peers (peer alias names), capabilities (CORE-side feature names like 'metadata').",
+          "additionalProperties": false,
+          "properties": {
+            "plugins": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "peers": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "capabilities": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
         }
       }
     }
