@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
+from . import observability
 from .expression import render_template
 from .types import Plugin, StateMetadata
 from .trigger import Trigger, TriggerEvent, TriggerScheduler, TriggerSetupError
@@ -297,6 +298,14 @@ class StatechartEngine:
                 try:
                     ast = parse_expr(guard_str)
                     actual_value = evaluate(ast, env.as_dict())
+                    observability.emit(
+                        "cue.guard.evaluated",
+                        plugin=self.plugin.name,
+                        event_type=event.type,
+                        guard_expression=guard_str,
+                        result=bool(actual_value),
+                        reason=None if actual_value else "guard_false",
+                    )
                     if not actual_value:
                         details = {
                             "guard_expression": guard_str,
@@ -317,6 +326,12 @@ class StatechartEngine:
                     log.error(
                         "guard eval failed for %s reason=%s details=%s",
                         self.plugin.name, reason, details,
+                    )
+                    observability.emit(
+                        "cue.error",
+                        plugin=self.plugin.name,
+                        error_type=f"guard.{reason}",
+                        details=details,
                     )
                     return TransitionResult.no_match(reason, details)
 
@@ -378,6 +393,13 @@ class StatechartEngine:
                 raise ActionError("reply_a2a requires an event with message_id")
             text = render_template(action["with"]["template"], env.as_dict())
             await self._a2a_reply(env.event.message_id, text)
+            observability.emit(
+                "cue.action.executed",
+                plugin=self.plugin.name,
+                action_type="reply_a2a",
+                target_peer=None,
+                metadata_keys=[],
+            )
             return
         if action_type == "send_a2a":
             peer = action["with"]["peer"]
@@ -392,11 +414,19 @@ class StatechartEngine:
             rendered_metadata = None
             if raw_metadata is not None:
                 rendered_metadata = _render_metadata(raw_metadata, env.as_dict())
+            metadata_keys = sorted(rendered_metadata.keys()) if isinstance(rendered_metadata, dict) else []
             # v1.4.8: invoke _a2a_send tolerating legacy 2-arg signatures.
             try:
                 await self._a2a_send(peer, text, metadata=rendered_metadata)
             except TypeError:
                 await self._a2a_send(peer, text)
+            observability.emit(
+                "cue.action.executed",
+                plugin=self.plugin.name,
+                action_type="send_a2a",
+                target_peer=peer,
+                metadata_keys=metadata_keys,
+            )
             return
         handler = ACTION_REGISTRY.get(action_type)
         if handler is None:
@@ -404,6 +434,13 @@ class StatechartEngine:
         result = handler(action, env)
         if asyncio.iscoroutine(result):
             await result
+        observability.emit(
+            "cue.action.executed",
+            plugin=self.plugin.name,
+            action_type=action_type,
+            target_peer=None,
+            metadata_keys=[],
+        )
 
     # ----- persistence (v1.2.1 spec §2/§5) -----
 

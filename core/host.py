@@ -175,6 +175,17 @@ class Host:
             result = await self.a2a_client.send_message(
                 peer, {'text': text}, metadata=metadata,
             )
+            try:
+                from . import observability
+                observability.emit(
+                    'cue.send_a2a.completed',
+                    plugin=plugin.name,
+                    target_peer=peer,
+                    metadata_keys=sorted(metadata.keys()) if isinstance(metadata, dict) else [],
+                    result=getattr(result, 'value', str(result)),
+                )
+            except Exception:
+                pass
             if result.value == 'exhausted':
                 log.warning("[%s] send_a2a exhausted, dispatching fallback", plugin.name)
                 from .statechart import Event

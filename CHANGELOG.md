@@ -12,6 +12,23 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.5.1] - 2026-06-12
+
+### Fixed
+- **P0**: `{{event.peer}}` (and any other `event.*` field) rendered to an empty string when an admin trigger payload omitted `peer`. `handle_trigger` now injects the configured peer alias from the matching `history_change` trigger before constructing the `Event`, so `text` / `metadata` templates see the real peer name.
+
+### Added
+- `core/observability.py`: stdlib-only structured event logging — `new_trace_id()` / `set_trace_id()` / `emit(event, **fields)` writing one JSON line per event. The trace id flows via `contextvars` so concurrent tasks stay isolated. structlog is deferred to a future release; this module keeps the public API compatible.
+- Admin trigger calls now bracket the transition with a trace id and emit `cue.trigger.received` + `cue.trigger.evaluated`; the trace id is also returned in the response body so a caller can grep one tag end-to-end.
+- Statechart now emits `cue.guard.evaluated`, `cue.action.executed` (for `log` / `set_context` / `reply_a2a` / `send_a2a`), and `cue.error` for guard parse/eval failures.
+- `host._wrap_send` emits `cue.send_a2a.completed` with target peer, metadata keys, and the underlying `SendResult` value.
+- New `/admin/status`, `/admin/peers`, `/admin/plugins` endpoints under the existing Bearer-token gate. `/admin/status` exposes per-plugin runtime state plus `last_trigger_at` / `last_match` / `last_reason` / `last_details`; `/admin/peers` reports each alias's `uuid`, `url`, and a best-effort reachable probe.
+- Agent Card version bumped to `1.5.1`.
+
+### Tests
+- Added v1.5.1 coverage for the trace_id contract, admin-trigger emit wiring, statechart emit wiring, send_a2a emit wiring, and the three admin diagnostics endpoints (including auth gate).
+- Full CUE suite: 294 passed, 6 skipped.
+
 ## [v1.5.0] - 2026-06-12
 
 ### Added
