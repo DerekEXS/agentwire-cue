@@ -292,7 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_doc = sub.add_parser("doctor", help="v1.5.2 deployment health checks")
     p_doc.add_argument("--plugin-dir", default=None, type=Path,
                        help="directory of plugin yaml files (enables plugin-dep + peer checks)")
-    p_doc.add_argument("--a2a-url", default="http://127.0.0.1:18800",
+    p_doc.add_argument("--a2a-url", default=os.environ.get("CUE_DOCTOR_A2A_URL", "http://127.0.0.1:18800"),
                        help="AGENTWIRE CORE base URL to probe")
     p_doc.add_argument("--a2a-token-file", default=None,
                        help="optional: validate this token file for BOM/CRLF")

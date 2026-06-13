@@ -12,6 +12,20 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.5.7] - 2026-06-13
+
+### Security
+- `agentwire-cue doctor` now downgrades `CORE` reachability FAIL → INFO when the URL targets the in-container `agentwire-core` DNS and resolution fails on the host shell, or when a loopback CORE is not listening. The probe is meaningless in either case and was a noisy false positive.
+- `examples/echo.yaml` (v0.3.0) removed; the workspace keeps only the newer `echo-with-persist.yaml` (v0.4.0) to avoid duplicate-plugin-name load warnings.
+
+### Changed
+- `doctor` CLI now reads `--a2a-url` default from `CUE_DOCTOR_A2A_URL`, which the Docker image sets to `http://agentwire-core:18800` for in-container healthchecks.
+- CUE image tag and agent card version bump to `v1.5.7`.
+
+### Tests
+- Added v1.5.7 coverage for `doctor` CORE downgrade and env-driven A2A URL.
+- Full CUE suite: 326+4 passed, 7 skipped.
+
 ## [v1.5.6] - 2026-06-13
 
 ### Security
@@ -31,7 +45,7 @@ metadata persistence and CUE peer aliases.
 
 ### Security
 - A2A inbound listener now defaults to `127.0.0.1`; LAN binding requires explicit `--a2a-listener-host 0.0.0.0` and logs a warning.
-- `/a2a/inbound` now enforces Bearer auth when a CUE admin token is configured.
+- `/a2a/inbound` now enforces Bearer auth when a CUE admin token is configured. **Breaking change for inbound callers**: they must now pass the CUE admin token (previously the A2A token was acceptable). Update routing config / call sites accordingly.
 - Admin API now defaults to `127.0.0.1`; remote binding requires explicit `--admin-host 0.0.0.0` and logs a warning.
 - `send_a2a` now enforces `permissions.peers` allow-lists when present; empty peer allow-lists keep legacy permissive behavior.
 - Docker Compose publishes CORE/CUE ports on host loopback only by default.

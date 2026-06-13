@@ -44,6 +44,8 @@ Compose 默认只发布到宿主机 loopback：
 
 如需 LAN/VPN 访问，先确认防火墙、VPN 或 TLS 反代已配置，再移除端口映射前的 `127.0.0.1:`。容器内服务仍会显式使用 `--a2a-listener-host 0.0.0.0` 和 `--admin-host 0.0.0.0`，这样 Docker 才能发布端口；宿主机暴露面由 compose 的 `127.0.0.1:` 前缀控制。不要把 18800/18801/19000 直接暴露到公网。
 
+> v1.5.5 起，`/a2a/inbound` 使用 CUE admin token 做 Bearer auth。OpenClaw 路由层调用时需要把 admin token 写入请求头，而不是旧版 A2A token。
+
 ## 配置生产 owner-alert
 
 仓库里的 `examples/owner-alert/cue.yaml` 保持 demo 安全默认值；生产环境不要把真实 IP、peer uuid 或内网路由提交到仓库。
@@ -92,7 +94,15 @@ git status --short examples/owner-alert/cue.local.yaml
 # 应无输出；.gitignore 会忽略 examples/**/*.local.yaml
 ```
 
-如果要让 compose 使用生产覆盖文件，可把 `docker-compose.yml` 中的插件挂载从 `./examples:/plugins:ro` 改为一个本机专用插件目录，或在部署前把生产文件复制到受控的 `/plugins` 挂载目录。
+如果要让 compose 使用生产覆盖文件，可在 `docker-compose.yml` 中将 `agentwire-cue` 服务的 `./examples:/plugins:ro` 改为同时挂载生产 owner-alert：
+
+```yaml
+volumes:
+  - ./examples:/plugins:ro
+  - ./examples/owner-alert/cue.local.yaml:/plugins/owner-alert/cue.yaml:ro
+```
+
+这样生产 cue.yaml 覆盖 demo 默认值，而其他示例插件继续由 `./examples` 提供。
 
 ## 从旧版本迁移
 

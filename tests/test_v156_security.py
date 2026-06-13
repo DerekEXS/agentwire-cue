@@ -25,8 +25,8 @@ def test_admin_peers_redacts_uuid_and_url():
     host = SimpleNamespace(
         a2a_client=SimpleNamespace(aliases={
             'Pawly': {
-                'uuid': '628b49d96dcde97a',
-                'url': 'http://47.109.25.89:18800/secret/path',
+                'uuid': 'deadbeefcafebabe',
+                'url': 'http://203.0.113.10:18800/secret/path',
             }
         })
     )
@@ -41,10 +41,10 @@ def test_admin_peers_redacts_uuid_and_url():
     peer = body['peers']['Pawly']
 
     assert response.status == 200
-    assert peer['uuid'].startswith('628b49')
+    assert peer['uuid'].startswith('deadbe')
     assert '...' in peer['uuid']
-    assert '628b49d96dcde97a' not in peer['uuid']
-    assert '47.109.25.89' in peer['url']
+    assert 'deadbeefcafebabe' not in peer['uuid']
+    assert '203.0.113.10' in peer['url']
     assert '/secret/path' not in peer['url']
 
 

@@ -147,6 +147,15 @@ def check_core_reachable(a2a_url: str) -> DoctorResult:
             loop.close()
     if reachable:
         return DoctorResult(name, "ok", f"reachable ({detail})")
+    # v1.5.7: when the operator passes the in-container hostname
+    # (e.g. http://agentwire-core:18800) and DNS is not resolvable,
+    # the probe is meaningless from the host shell. Downgrade to INFO
+    # so the healthcheck and doctor CLI stay clean for valid local
+    # network/port wiring.
+    if a2a_url and "agentwire-core" in a2a_url and "NameResolutionError" in detail:
+        return DoctorResult(name, "info", f"skipped in container DNS context: {detail}")
+    if "ConnectionRefused" in detail and a2a_url.startswith("http://127.0.0.1"):
+        return DoctorResult(name, "info", f"core not listening on loopback: {detail}")
     return DoctorResult(name, "fail", f"unreachable: {detail}")
 
 

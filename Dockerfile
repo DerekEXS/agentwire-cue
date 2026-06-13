@@ -40,7 +40,8 @@ VOLUME ["/plugins", "/data"]
 # Default plumbing for compose. CUE_CORE_URL points at the companion
 # CORE service; admin token resolved from the mounted secret.
 ENV PYTHONPATH=/app \
-    CUE_CORE_URL=http://agentwire-core:18800
+    CUE_CORE_URL=http://agentwire-core:18800 \
+    CUE_DOCTOR_A2A_URL=http://agentwire-core:18800
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
     CMD python3 -m agentwire_cue doctor \
