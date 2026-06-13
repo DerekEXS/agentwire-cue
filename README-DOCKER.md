@@ -32,6 +32,18 @@ printf '%s\n' 'your-admin-token-here' > secrets/cue-admin-token.txt
 chmod 600 secrets/*.txt
 ```
 
+## 默认网络边界
+
+Compose 默认只发布到宿主机 loopback：
+
+```yaml
+127.0.0.1:${CORE_PORT:-18800}:18800
+127.0.0.1:${CUE_API_PORT:-18801}:18801
+127.0.0.1:${CUE_ADMIN_PORT:-19000}:19000
+```
+
+如需 LAN/VPN 访问，先确认防火墙、VPN 或 TLS 反代已配置，再移除端口映射前的 `127.0.0.1:`。容器内服务仍会显式使用 `--a2a-listener-host 0.0.0.0` 和 `--admin-host 0.0.0.0`，这样 Docker 才能发布端口；宿主机暴露面由 compose 的 `127.0.0.1:` 前缀控制。不要把 18800/18801/19000 直接暴露到公网。
+
 ## 配置生产 owner-alert
 
 仓库里的 `examples/owner-alert/cue.yaml` 保持 demo 安全默认值；生产环境不要把真实 IP、peer uuid 或内网路由提交到仓库。

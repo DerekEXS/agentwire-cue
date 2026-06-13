@@ -165,7 +165,9 @@ async def _run_host(args: argparse.Namespace) -> int:
         a2a_token=a2a_token,
         admin_token=admin_token,
         admin_port=args.admin_port,
+        admin_host=args.admin_host,
         a2a_listener_port=args.a2a_listener_port,
+        a2a_listener_host=args.a2a_listener_host,
         persist_allow_parents=args.persist_allow_parent or None,
         shutdown_drain_timeout_ms=args.shutdown_drain_timeout_ms,
     )
@@ -277,7 +279,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_host.add_argument("--admin-token-file", default=None,
                         help="read admin token from file; takes precedence over --admin-token-env")
     p_host.add_argument("--admin-port", type=int, default=19000, help="admin API port (default 19000)")
+    p_host.add_argument("--admin-host", default="127.0.0.1", help="admin API bind host (default 127.0.0.1; use 0.0.0.0 only behind firewall/VPN)")
     p_host.add_argument("--a2a-listener-port", type=int, default=18801, help="A2A listener port (default 18801)")
+    p_host.add_argument("--a2a-listener-host", default="127.0.0.1", help="A2A listener bind host (default 127.0.0.1; use 0.0.0.0 only behind firewall/VPN)")
     p_host.add_argument("--persist-allow-parent", action="append", default=[], help="extra allowed parent (repeatable)")
     p_host.add_argument("--shutdown-drain-timeout-ms", type=int, default=30_000, help="shutdown drain timeout (default 30s)")
     p_host.set_defaults(func=cmd_host)

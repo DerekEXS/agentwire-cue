@@ -5,7 +5,7 @@ services:
     image: agentwire-core:v1.5.0
     container_name: agentwire-core
     ports:
-      - "${CORE_PORT:-18800}:18800"
+      - "127.0.0.1:${CORE_PORT:-18800}:18800"
     volumes:
       - core_history:/data/history
       - core_peers:/data/peers
@@ -27,11 +27,11 @@ services:
   agentwire-cue:
     build:
       context: .
-    image: agentwire-cue:v1.5.4
+    image: agentwire-cue:v1.5.5
     container_name: agentwire-cue
     ports:
-      - "${CUE_API_PORT:-18801}:18801"
-      - "${CUE_ADMIN_PORT:-19000}:19000"
+      - "127.0.0.1:${CUE_API_PORT:-18801}:18801"
+      - "127.0.0.1:${CUE_ADMIN_PORT:-19000}:19000"
     volumes:
       - ./examples:/plugins:ro
       - cue_data:/data

@@ -2,4 +2,4 @@
 
 CLI entry: python -m agentwire_cue
 """
-__version__ = "1.5.4"
+__version__ = "1.5.5"

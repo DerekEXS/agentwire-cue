@@ -15,6 +15,7 @@ SendResult 4 枚举 (D1):
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -33,7 +34,7 @@ from .sandbox import (
 )
 
 log = logging.getLogger("agentwire_cue.a2a_client")
-CUE_VERSION = "1.5.4"
+CUE_VERSION = "1.5.5"
 
 
 def now_ms() -> int:
@@ -310,9 +311,10 @@ class A2AClient:
 class A2AListener:
     """v1.4 §7.7: 单中央 18801 listener (D3)."""
 
-    def __init__(self, host: str = '0.0.0.0', port: int = 18801):
+    def __init__(self, host: str = '127.0.0.1', port: int = 18801, auth_token: str | None = None):
         self.host = host
         self.port = port
+        self.auth_token = auth_token
         self.reject_new = False
         self._inbound_handlers: list[Callable[[dict], Awaitable[None]]] = []
         self._runner = None
@@ -365,6 +367,12 @@ class A2AListener:
             return web.json_response(
                 {'error': 'draining'}, status=503,
             )
+        if self.auth_token:
+            auth = request.headers.get('Authorization', '')
+            if not auth.startswith('Bearer ') or not hmac.compare_digest(auth[7:], self.auth_token):
+                return web.json_response({'error': 'unauthorized'}, status=401)
+        else:
+            log.warning("A2A inbound auth disabled because no token is configured")
         body = await request.json()
         message = body.get('params', {}).get('message', {})
         for handler in self._inbound_handlers:

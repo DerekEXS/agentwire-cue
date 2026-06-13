@@ -56,7 +56,9 @@ class Host:
         a2a_token: Optional[str] = None,
         admin_token: Optional[str] = None,
         admin_port: int = 19000,
+        admin_host: str = '127.0.0.1',
         a2a_listener_port: int = 18801,
+        a2a_listener_host: str = '127.0.0.1',
         persist_allow_parents: Optional[list[str]] = None,
         shutdown_drain_timeout_ms: int = 30_000,
     ):
@@ -65,7 +67,9 @@ class Host:
         self.a2a_token = a2a_token
         self.admin_token = admin_token or os.environ.get('ADMIN_TOKEN')
         self.admin_port = admin_port
+        self.admin_host = admin_host
         self.a2a_listener_port = a2a_listener_port
+        self.a2a_listener_host = a2a_listener_host
         self.persist_allow_parents = persist_allow_parents or []
         self.shutdown_drain_timeout_ms = shutdown_drain_timeout_ms
 
@@ -159,8 +163,12 @@ class Host:
 
         # 4i. Setup triggers (await setup, asyncio.gather)
         self.scheduler = TriggerScheduler()
+        if self.a2a_listener_host == '0.0.0.0':
+            log.warning("A2A listener binding 0.0.0.0; protect 18801 with firewall/VPN and Bearer auth")
         self.a2a_listener = A2AListener(
-            host='0.0.0.0', port=self.a2a_listener_port,
+            host=self.a2a_listener_host,
+            port=self.a2a_listener_port,
+            auth_token=self.admin_token,
         )
         await self._setup_triggers()
         log.info("triggers setup complete for %d plugins", len(self.plugins))
@@ -226,8 +234,13 @@ class Host:
         async def send(peer: str, text: str, metadata=None):
             log.info("[%s] send_a2a to %s: %s (metadata_keys=%s)", plugin.name, peer, text[:80],
                      sorted(metadata.keys()) if isinstance(metadata, dict) else None)
+            permission_check = None
+            if self.enforcer is not None:
+                peers = self.enforcer.get(plugin.name).get('peers', []) or []
+                if peers:
+                    permission_check = lambda: bool(self.enforcer.check_peer(plugin.name, peer, 'A2A_MESSAGE'))
             result = await self.a2a_client.send_message(
-                peer, {'text': text}, metadata=metadata,
+                peer, {'text': text}, metadata=metadata, permission_check=permission_check,
             )
             try:
                 from . import observability
@@ -248,6 +261,7 @@ class Host:
                     payload={'target_peer': peer, 'text': text, 'metadata': metadata},
                 )
                 await self.fallback_dispatcher.dispatch(plugin, ev)
+            return result
         return send
 
     async def _setup_triggers(self) -> None:
@@ -294,7 +308,9 @@ class Host:
         app = create_admin_app(self)
         self.admin_runner = web.AppRunner(app)
         await self.admin_runner.setup()
-        self.admin_site = web.TCPSite(self.admin_runner, '0.0.0.0', self.admin_port)
+        if self.admin_host == '0.0.0.0':
+            log.warning("admin API binding 0.0.0.0; protect 19000 with firewall/VPN and Bearer auth")
+        self.admin_site = web.TCPSite(self.admin_runner, self.admin_host, self.admin_port)
         await self.admin_site.start()
 
     async def run_forever(self) -> None:

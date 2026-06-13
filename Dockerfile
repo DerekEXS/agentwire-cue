@@ -54,5 +54,7 @@ CMD ["python3", "-m", "agentwire_cue", "host", \
      "--a2a-url", "http://agentwire-core:18800", \
      "--a2a-token-file", "/run/secrets/a2a-token.txt", \
      "--admin-token-file", "/run/secrets/cue-admin-token.txt", \
+     "--admin-host", "0.0.0.0", \
      "--admin-port", "19000", \
+     "--a2a-listener-host", "0.0.0.0", \
      "--a2a-listener-port", "18801"]

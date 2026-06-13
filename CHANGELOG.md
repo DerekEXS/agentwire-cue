@@ -12,6 +12,21 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.5.5] - 2026-06-13
+
+### Security
+- A2A inbound listener now defaults to `127.0.0.1`; LAN binding requires explicit `--a2a-listener-host 0.0.0.0` and logs a warning.
+- `/a2a/inbound` now enforces Bearer auth when a CUE admin token is configured.
+- Admin API now defaults to `127.0.0.1`; remote binding requires explicit `--admin-host 0.0.0.0` and logs a warning.
+- `send_a2a` now enforces `permissions.peers` allow-lists when present; empty peer allow-lists keep legacy permissive behavior.
+- Docker Compose publishes CORE/CUE ports on host loopback only by default.
+
+### Changed
+- CUE image tag and agent card version bump to `v1.5.5`.
+
+### Tests
+- Added v1.5.5 coverage for listener/admin bind defaults, inbound Bearer auth, and send_a2a peer permission enforcement.
+
 ## [v1.5.4] - 2026-06-13
 
 ### Fixed
