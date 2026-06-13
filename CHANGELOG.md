@@ -12,6 +12,18 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.5.9] - 2026-06-13
+
+### Fixed
+- `examples/owner-alert/cue.yaml`: `set_context` now uses the correct direct key-value structure (`last_notified_round: "{{event.new_round}}"`) instead of the broken `key:`/`value:` wrapper that silently set `context["key"] = "last_notified_round"` (literal). The round-dedup guard `event.new_round > context.last_notified_round` is now functional.
+- `spec.resilience.on_exhaust` is now validated at loader time against known state names, catching spelling mistakes before runtime.
+
+### Changed
+- Examples `echo-with-persist.yaml`, `a2a-with-fallback.yaml`, and `file-watcher.yaml` now document their `match: "*"` intent with inline comments.
+
+### Tests
+- Added v1.5.9 coverage for owner-alert set_context structure, on_exhaust validation (missing and valid), plus full-regression suite.
+
 ## [v1.5.8] - 2026-06-13
 
 ### Changed

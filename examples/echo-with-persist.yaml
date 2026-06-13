@@ -12,6 +12,8 @@ spec:
   triggers:
     - id: any-incoming
       type: a2a_message_type
+      # v1.5.9: match "*" intentionally kept — echo examples respond to
+      # any inbound A2A message regardless of the sender's type envelope.
       config: { match: "*" }
 
   statechart:

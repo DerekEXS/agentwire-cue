@@ -72,8 +72,7 @@ spec:
             actions:
               - type: set_context
                 with:
-                  key: last_notified_round
-                  value: "{{event.new_round}}"
+                  last_notified_round: "{{event.new_round}}"
               - type: log
                 with:
                   level: info

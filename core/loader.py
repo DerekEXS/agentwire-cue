@@ -191,6 +191,16 @@ def _validate_targets(plugin_dict: dict, *, path: Path) -> list[str]:
     errors: list[str] = []
     states = plugin_dict.get("spec", {}).get("statechart", {}).get("states", {}) or {}
     state_ids = set(states.keys())
+    # v1.5.9: also validate resilience.on_exhaust target (previously unchecked;
+    # a spelling mistake in on_exhaust would silently fail at runtime).
+    resilience = plugin_dict.get("spec", {}).get("resilience") or {}
+    on_exhaust = (resilience.get("on_exhaust") if isinstance(resilience, dict) else None)
+    if on_exhaust and on_exhaust not in state_ids:
+        available = sorted(state_ids)
+        errors.append(
+            f"ON_EXHAUST_NOT_IN_STATES: resilience.on_exhaust "
+            f"{on_exhaust!r} not in spec.states {available}. Fix plugin.yaml."
+        )
     for state_name, state_def in states.items():
         if not isinstance(state_def, dict):
             continue
