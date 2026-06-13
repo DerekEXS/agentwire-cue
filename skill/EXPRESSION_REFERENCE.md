@@ -1,7 +1,9 @@
-# Cue Expression Reference (v1.4.3)
+# Cue Expression Reference (v1.5.7)
 
 > Full grammar and reference for AgentWire-Cue guard expressions and templates.
 > See [PLUGIN_AUTHORING.md](PLUGIN_AUTHORING.md) for usage examples.
+>
+> **Support**: `structlog` in Docker image, stdlib JSON fallback locally. `history_proxy.HistoryDiagnosticError` may raise on empty histories — guards using `||` will short-circuit, but empty peer lookups fail before reaching the `||` test.
 
 ## Grammar (EBNF)
 

@@ -1,7 +1,15 @@
-# Cue Plugin Authoring Guide
+# Cue Plugin Authoring Guide (v1.5.7)
 
 > Detailed reference for writing `*.yaml` plugin files for AgentWire-Cue.
 > See [SKILL.md](SKILL.md) for the high-level overview.
+> Schema version: `agentwire/v1.2`.
+
+## Security (v1.5.5+)
+
+- `permissions.peers` is now enforced at `send_a2a` time: when non-empty, only listed peer ids are allowed. Empty = legacy permissive.
+- `/a2a/inbound` requires the **CUE admin token** (not the A2A token).
+- Inbound listener and admin API default to `127.0.0.1`.
+- See [SKILL.md](SKILL.md) for the full security defaults.
 
 ## The 4 primitives
 

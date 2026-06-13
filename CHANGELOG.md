@@ -12,6 +12,14 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.5.8] - 2026-06-13
+
+### Changed
+- All 5 SKILL files updated to reflect v1.5.7 feature state:
+  `agentwire/v1.2` schema examples, Docker Compose startup, inbound admin-token
+  auth, security defaults, `/admin/peers` redaction, `permissions.peers`
+  enforcement, and `doctor` CORE downgrade.
+
 ## [v1.5.7] - 2026-06-13
 
 ### Security
