@@ -90,14 +90,39 @@ def test_check_port_available_when_busy():
     s.listen(1)
     port = s.getsockname()[1]
     try:
-        result = doctor.check_port_available(port, host="127.0.0.1")
-        assert result.status == "warn"
+        monkeypatch = pytest.MonkeyPatch()
+        monkeypatch.setattr(doctor, "_port_owner_command", lambda busy_port: None)
+        try:
+            result = doctor.check_port_available(port, host="127.0.0.1")
+        finally:
+            monkeypatch.undo()
+        assert result.status == "info"
         assert str(port) in result.message
     finally:
         s.close()
 
 
-# ---------- plugin deps ----------
+
+def test_check_port_reports_ok_when_owned_by_agentwire_cue(monkeypatch):
+    import socket
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("127.0.0.1", 0))
+    s.listen(1)
+    port = s.getsockname()[1]
+    try:
+        monkeypatch.setattr(
+            doctor,
+            "_port_owner_command",
+            lambda busy_port: "python3 -m agentwire_cue host --plugin-dir /plugins" if busy_port == port else None,
+            raising=False,
+        )
+        result = doctor.check_port_available(port, host="127.0.0.1")
+        assert result.status == "ok"
+        assert "agentwire_cue" in result.message
+    finally:
+        s.close()
+
 
 
 def _write_plugin(tmp_path: Path, name: str, body: str) -> Path:

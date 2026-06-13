@@ -207,7 +207,7 @@ def cmd_host(args: argparse.Namespace) -> int:
 # ---------- doctor (v1.5.2) ----------
 
 def _format_doctor_line(r) -> str:
-    icons = {"ok": "OK  ", "warn": "WARN", "fail": "FAIL"}
+    icons = {"ok": "OK  ", "info": "INFO", "warn": "WARN", "fail": "FAIL"}
     return f"{icons.get(r.status, '?   ')} {r.name}: {r.message}"
 
 

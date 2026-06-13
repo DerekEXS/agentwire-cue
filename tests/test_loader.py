@@ -354,9 +354,14 @@ class TestLoadPlugin:
         p = tmp_path / "bad.yaml"
         p.write_text(_plugin_with_bad_guard(), encoding="utf-8")
         assert load_plugin(p) is None
+    def test_echo_with_persist_example_loads(self):
+        example = Path(__file__).resolve().parents[1] / "examples" / "echo-with-persist.yaml"
+        plugin = load_plugin(example)
+        assert plugin is not None
+        assert plugin.name == "echo"
+        assert plugin.api_version == "agentwire/v1.2"
 
 
-# ---------- load_all ----------
 
 class TestLoadAll:
     def test_loads_multiple_plugins_skipping_bad(self, tmp_path: Path):

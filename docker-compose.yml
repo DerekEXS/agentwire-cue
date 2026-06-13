@@ -27,7 +27,7 @@ services:
   agentwire-cue:
     build:
       context: .
-    image: agentwire-cue:v1.5.3
+    image: agentwire-cue:v1.5.4
     container_name: agentwire-cue
     ports:
       - "${CUE_API_PORT:-18801}:18801"

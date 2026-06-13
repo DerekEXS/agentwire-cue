@@ -12,6 +12,22 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.5.4] - 2026-06-13
+
+### Fixed
+- `agentwire-cue doctor` now treats ports already owned by an `agentwire_cue` process as healthy, and downgrades unidentifiable busy ports to INFO when the container cannot expose owner details.
+- `examples/echo-with-persist.yaml` now uses supported `apiVersion: agentwire/v1.2`, so the example loads without schema warnings.
+- The release-tracked Compose file is the CUE-root `docker-compose.yml`; the workspace-level compose file is retired to a pointer to avoid drift.
+- `README-DOCKER.md` now documents the official compose path, production owner-alert configuration via ignored local overrides, migration from old systemd/nohup deployments, history volume migration, token migration, and post-migration verification.
+
+### Changed
+- CUE image tag and agent card version bump to `v1.5.4`.
+
+### Tests
+- Full CUE suite: 316 passed, 7 skipped.
+- Docker build: `agentwire-cue:v1.5.4` at 138MB.
+- Compose smoke: CORE and CUE both healthy; in-container doctor reports listener ports as INFO, not WARN.
+
 ## [v1.5.3] - 2026-06-12
 
 ### Added

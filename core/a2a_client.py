@@ -33,7 +33,7 @@ from .sandbox import (
 )
 
 log = logging.getLogger("agentwire_cue.a2a_client")
-CUE_VERSION = "1.5.3"
+CUE_VERSION = "1.5.4"
 
 
 def now_ms() -> int:

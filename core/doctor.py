@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import os
 import socket
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -30,7 +31,7 @@ from typing import Iterable
 @dataclass(frozen=True)
 class DoctorResult:
     name: str
-    status: str  # "ok" | "warn" | "fail"
+    status: str  # "ok" | "info" | "warn" | "fail"
     message: str
 
 
@@ -74,7 +75,19 @@ def check_proxy_env() -> DoctorResult:
     )
 
 
-# ---------- port ----------
+def _port_owner_command(port: int) -> str | None:
+    try:
+        out = subprocess.check_output(
+            ["ss", "-ltnp", f"sport = :{port}"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return None
+    for line in out.splitlines():
+        if "users:((" in line:
+            return line
+    return None
 
 
 def check_port_available(port: int, *, host: str = "127.0.0.1") -> DoctorResult:
@@ -89,7 +102,12 @@ def check_port_available(port: int, *, host: str = "127.0.0.1") -> DoctorResult:
     try:
         s.bind((host, port))
     except OSError as e:
-        return DoctorResult(name, "warn", f"port {port} in use ({e})")
+        owner = _port_owner_command(port)
+        if owner and "agentwire_cue" in owner:
+            return DoctorResult(name, "ok", f"port {port} is already owned by agentwire_cue")
+        if owner:
+            return DoctorResult(name, "warn", f"port {port} in use by another process ({e})")
+        return DoctorResult(name, "info", f"port {port} in use; owner unavailable ({e})")
     finally:
         s.close()
     return DoctorResult(name, "ok", f"port {port} available")

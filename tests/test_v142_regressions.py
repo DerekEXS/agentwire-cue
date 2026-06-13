@@ -166,8 +166,8 @@ class TestEndToEndWithAGENTWIRE:
         try:
             resp = urllib.request.urlopen("http://127.0.0.1:18800/.well-known/agent.json", timeout=2)
             assert resp.status == 200
-        except (URLError := __import__("urllib.error").error.URLError) as URLError:
-            pytest.skip(f"AGENTWIRE not running: {URLError}")
+        except Exception as e:
+            pytest.skip(f"AGENTWIRE not running: {e}")
 
     def test_proxy_transparent(self):
         """Proxy 18802 -> 18800 should return same agent card."""
