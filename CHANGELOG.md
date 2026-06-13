@@ -12,6 +12,21 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.5.6] - 2026-06-13
+
+### Security
+- `examples/owner-alert/cue.yaml.local-backup` is moved out of the working tree into the local archive directory; tracked tree only contains demo defaults.
+- `/admin/peers` now redacts `uuid` to first 8 hex chars + `...` and `url` to scheme + host + port; query/path are dropped.
+- `/admin/peers` reachability probes are cached for 30s per URL to avoid repeat scans.
+- A2A listener bound to a non-loopback interface now rejects inbound requests outright (HTTP 403) when no auth token is configured; loopback listeners still warn and accept (developer ergonomics).
+- `README-DOCKER.md` drops host-specific absolute paths in command examples.
+
+### Changed
+- CUE image tag and agent card version bump to `v1.5.6`.
+
+### Tests
+- Added v1.5.6 coverage for `/admin/peers` redaction, peer reachability cache, and the no-token bind policy.
+
 ## [v1.5.5] - 2026-06-13
 
 ### Security

@@ -126,7 +126,7 @@ async def test_admin_status_requires_auth():
 @pytest.mark.asyncio
 async def test_admin_peers_lists_aliases():
     peers = {
-        "Pawly": {"uuid": "demo-uuid", "url": "http://demo.invalid:18800"},
+        "Pawly": {"uuid": "demo", "url": "http://demo.invalid:18800"},
     }
     host = _make_host({}, peers=peers)
     request = make_mocked_request(
@@ -141,7 +141,9 @@ async def test_admin_peers_lists_aliases():
     assert response.status == 200
     assert "Pawly" in body["peers"]
     entry = body["peers"]["Pawly"]
-    assert entry["uuid"] == "demo-uuid"
+    # v1.5.6: short demo uuid (<= 6 chars) is left intact, url is
+    # redacted to scheme + host + port only.
+    assert entry["uuid"] == "demo"
     assert entry["url"] == "http://demo.invalid:18800"
     assert "reachable" in entry
 

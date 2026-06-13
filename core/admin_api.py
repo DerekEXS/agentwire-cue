@@ -5,6 +5,7 @@ import functools
 import hmac
 import json
 import logging
+import time
 from typing import TYPE_CHECKING
 
 from aiohttp import web
@@ -248,6 +249,49 @@ async def _probe_peer_reachable(url: str, timeout_s: float = 1.0) -> bool:
         return False
 
 
+def _redact_uuid(uuid: str | None) -> str | None:
+    if not uuid:
+        return uuid
+    if len(uuid) <= 6:
+        return uuid
+    return f"{uuid[:6]}..."
+
+
+def _redact_url(url: str | None) -> str | None:
+    if not url:
+        return url
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return url
+    host = parsed.hostname or ''
+    if not host:
+        return url
+    if parsed.port:
+        netloc = f"{host}:{parsed.port}"
+    else:
+        netloc = host
+    scheme = parsed.scheme or ''
+    redacted = f"{scheme}://{netloc}" if scheme else netloc
+    return redacted
+
+
+# v1.5.6: 30s TTL cache for peer reachability probes keyed by URL.
+_PEER_REACHABILITY_TTL_MS = 30_000
+_peer_reach_cache: dict[str, tuple[int, bool]] = {}
+
+
+async def _probe_peer_reachable_cached(url: str, timeout_s: float = 1.0) -> bool:
+    now_ms = int(time.time() * 1000)
+    cached = _peer_reach_cache.get(url)
+    if cached is not None and now_ms - cached[0] < _PEER_REACHABILITY_TTL_MS:
+        return cached[1]
+    reachable = await _probe_peer_reachable(url, timeout_s=timeout_s)
+    _peer_reach_cache[url] = (now_ms, reachable)
+    return reachable
+
+
 @require_admin_token
 async def handle_admin_status(request: web.Request) -> web.Response:
     """v1.5.1 §10: per-plugin runtime state with last-trigger bookkeeping."""
@@ -294,10 +338,10 @@ async def handle_admin_peers(request: web.Request) -> web.Response:
     for alias, meta in aliases.items():
         meta = meta or {}
         url = meta.get('url')
-        reachable = await _probe_peer_reachable(url) if url else False
+        reachable = await _probe_peer_reachable_cached(url) if url else False
         peers[alias] = {
-            'uuid': meta.get('uuid'),
-            'url': url,
+            'uuid': _redact_uuid(meta.get('uuid')),
+            'url': _redact_url(url),
             'reachable': reachable,
         }
     return web.json_response({'peers': peers})

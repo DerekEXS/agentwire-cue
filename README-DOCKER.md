@@ -5,7 +5,7 @@
 官方 Docker Compose 文件位于 CUE 仓库根目录：
 
 ```bash
-cd /mnt/d/项目/A2A/agentwire_cue
+cd agentwire_cue/
 docker compose up -d
 ```
 
@@ -25,7 +25,7 @@ A2A/
 ## 准备 secrets
 
 ```bash
-cd /mnt/d/项目/A2A/agentwire_cue
+cd agentwire_cue/
 mkdir -p secrets
 printf '%s\n' 'your-a2a-token-here' > secrets/a2a-token.txt
 printf '%s\n' 'your-admin-token-here' > secrets/cue-admin-token.txt
@@ -163,7 +163,7 @@ docker exec agentwire-cue python3 -m agentwire_cue doctor --no-network
 ## 启动
 
 ```bash
-cd /mnt/d/项目/A2A/agentwire_cue
+cd agentwire_cue/
 docker compose up -d
 ```
 

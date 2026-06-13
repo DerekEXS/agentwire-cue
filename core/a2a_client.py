@@ -34,7 +34,7 @@ from .sandbox import (
 )
 
 log = logging.getLogger("agentwire_cue.a2a_client")
-CUE_VERSION = "1.5.5"
+CUE_VERSION = "1.5.6"
 
 
 def now_ms() -> int:
@@ -320,6 +320,10 @@ class A2AListener:
         self._runner = None
         self._site = None
         self._plugins_info: list[dict] = []  # for agent card
+        # v1.5.6: when bound to a non-loopback interface with no auth token,
+        # inbound A2A traffic must be refused outright. Local development
+        # on 127.0.0.1 / ::1 / localhost stays permissive.
+        self.allow_inbound_without_token = host in ('127.0.0.1', '::1', 'localhost') or host.startswith('127.')
 
     def register_handler(self, handler: Callable[[dict], Awaitable[None]]) -> None:
         self._inbound_handlers.append(handler)
@@ -372,6 +376,13 @@ class A2AListener:
             if not auth.startswith('Bearer ') or not hmac.compare_digest(auth[7:], self.auth_token):
                 return web.json_response({'error': 'unauthorized'}, status=401)
         else:
+            if not self.allow_inbound_without_token:
+                from aiohttp import web
+                log.warning("A2A inbound refused: bound %s without token", self.host)
+                return web.json_response(
+                    {'error': 'bound_without_token', 'detail': f"listener binds {self.host} but no auth_token is configured"},
+                    status=403,
+                )
             log.warning("A2A inbound auth disabled because no token is configured")
         body = await request.json()
         message = body.get('params', {}).get('message', {})
