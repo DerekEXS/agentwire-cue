@@ -1,4 +1,4 @@
-# Cue Expression Reference (v1.5.7)
+# Cue Expression Reference (v1.6.0)
 
 > Full grammar and reference for AgentWire-Cue guard expressions and templates.
 > See [PLUGIN_AUTHORING.md](PLUGIN_AUTHORING.md) for usage examples.

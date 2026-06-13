@@ -2,7 +2,7 @@ services:
   agentwire-core:
     build:
       context: ../agentwire_core
-    image: agentwire-core:v1.5.2
+    image: agentwire-core:v1.5.5
     container_name: agentwire-core
     ports:
       - "127.0.0.1:${CORE_PORT:-18800}:18800"
@@ -27,7 +27,7 @@ services:
   agentwire-cue:
     build:
       context: .
-    image: agentwire-cue:v1.5.9
+    image: agentwire-cue:v1.6.0
     container_name: agentwire-cue
     ports:
       - "127.0.0.1:${CUE_API_PORT:-18801}:18801"

@@ -49,4 +49,4 @@ async def test_agent_card_reports_current_version():
     response = await listener._handle_agent_card(request)
 
     assert response.status == 200
-    assert '"version": "1.5.9"' in response.text
+    assert '"version": "1.6.0"' in response.text

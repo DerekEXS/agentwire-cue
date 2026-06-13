@@ -12,6 +12,33 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.6.0] - 2026-06-13
+
+### Production Ready Milestone
+
+This release marks **AgentWire-Cue production readiness**. All v1.5.x functionality,
+security hardening, and documentation work has converged; the version jumps to
+`v1.6.0` to signal this milestone. Future work moves to maintenance mode.
+
+### Added
+- `README.md` + `README_CN.md` fully rewritten: status badge `v1.6.0`, Docker
+  Compose quick-start, complete feature list (all v1.5.x items), updated
+  deployment section with security defaults, migrated examples to v1.4.8+
+  `peers` config block, updated repository structure.
+
+### Changed
+- Version strings unified to `1.6.0` across `__init__.py`, `a2a_client.py`,
+  `test_v150_regressions.py`, `docker-compose.yml` (image tag).
+- CORE image tag in compose bumped to `agentwire-core:v1.5.5`.
+- SKILL docs version headers synced to CORE v1.5.5 / CUE v1.6.0.
+
+### Fixed
+- All stale `v1.4.3` / `v1.4.4` / "future v1.5+" references purged from
+  README, README_CN, and README-DOCKER.
+
+### Tests
+- Full CUE suite: 334 passed, 6 skipped.
+
 ## [v1.5.9] - 2026-06-13
 
 ### Fixed

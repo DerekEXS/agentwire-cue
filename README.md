@@ -7,7 +7,7 @@
 [![A2A Protocol](https://img.shields.io/badge/A2A-v1.0.1-blue)](https://a2a-protocol.org/latest/specification/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
-[![Status](https://img.shields.io/badge/status-v1.4.4-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v1.4.4)
+[![Status](https://img.shields.io/badge/status-v1.6.0-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v1.6.0)
 
 ---
 
@@ -25,16 +25,21 @@ Cue is **not** an agent framework. It does not generate responses. It executes t
 
 ## Features
 
-- **YAML plugin format** — 4 primitives: triggers, statechart, actions, permissions
-- **Two trigger types** — `cron` and `a2a_message_type` (v1.4.3 adds `history_change`)
-- **Two new namespaces** (v1.4.3) — `peers.<name>.history.*` and `history.*` for cross-peer queries
-- **Method-call syntax** (v1.4.3) — `peers.Pawly.history.last_inbound_contains("project:")`
+- **YAML plugin format** — triggers, statechart, actions, permissions (apiVersion `agentwire/v1.2`)
+- **Three trigger types** — `cron`, `a2a_message_type`, and `history_change` (v1.4.3)
+- **Expression engine** — `peers.<name>.history.*`, `history.*`, `event.*`, `context.*`, `meta.*`, `now.*` namespaces; method-call syntax `peers.Pawly.history.last_inbound_contains("keyword")` (v1.4.3)
+- **`spec.peers` aliases** — peer UUID/URL table for stable history lookup and direct A2A routing (v1.4.8)
+- **`spec.requires` dependencies** — cross-plugin `plugins` / `peers` / `capabilities` dependency checking (v1.5.2)
+- **`send_a2a` with metadata** — optional `metadata` blocks with template rendering (v1.4.8)
+- **`send_a2a` workflow-pointer** — `metadata.workflow_pointer` sets the stage for A2A task handoff (v1.5.0)
+- **`spec.resilience.on_exhaust`** — loader-time validation against declared states (v1.5.9)
+- **`permissions.peers` enforcement** — non-empty peer allowlists gate `send_a2a` calls (v1.5.5)
+- **Admin API on port 19000** — `/admin/status`, `/admin/peers` (uuid/url redacted, 30s reachability cache), `/admin/plugins` (v1.5.1/v1.5.6)
+- **`agentwire-cue doctor`** — comprehensive pre-flight check: token file BOM/CRLF/chmod, CORE reachability (with container-downgrade), port conflicts, plugin dependency completeness (v1.5.2/v1.5.7)
+- **Structured observability** — trace-id-per-trigger, `cue.trigger.*` / `cue.guard.*` / `cue.action.*` / `cue.send_a2a.*` / `cue.error` JSON-line events (v1.5.1)
+- **Security defaults** — A2A listener + admin API default `127.0.0.1`; `/a2a/inbound` requires admin token (v1.5.5); non-loopback+no-token blocks inbound (v1.5.6)
 - **4-layer path sandbox** for file and subprocess actions
-- **3 layers of HTTP egress** allow-list (spec / plugin / flag)
-- **5-category permission enforcer** (persist / network / subprocess / secret / admin)
-- **Bearer-token admin API** on port 19000 (`/status`, `/plugins`, `/trigger`)
-- **Persistent context** with sensitive-field exclusion
-- **250+ unit tests** covering grammar, actions, permissions
+- **330+ unit tests** covering grammar, actions, permissions, admin, doctor
 
 ## Architecture
 
@@ -63,22 +68,41 @@ Cue is **not** an agent framework. It does not generate responses. It executes t
 
 ## Quick Start
 
-Cue requires AgentWire-Core to be running. Use cue alongside it.
+Cue requires AgentWire-Core. The recommended way is Docker Compose:
 
 ```bash
-# 1. Install cue
+# 1. Clone the CUE repo (contains the unified compose for CORE + CUE)
+git clone https://github.com/DerekEXS/agentwire-cue.git
+cd agentwire-cue
+
+# 2. Prepare secrets
+mkdir -p secrets
+printf '%s\n' 'YOUR_A2A_TOKEN' > secrets/a2a-token.txt
+printf '%s\n' 'YOUR_CUE_ADMIN_TOKEN' > secrets/cue-admin-token.txt
+chmod 600 secrets/*.txt
+
+# 3. Start CORE + CUE
+docker compose up -d
+
+# 4. Verify
+docker compose ps
+curl -s http://127.0.0.1:18800/.well-known/agent.json
+curl -s http://127.0.0.1:18801/.well-known/agent.json
+
+# 5. Run in-container doctor
+docker exec agentwire-cue python3 -m agentwire_cue doctor --no-network
+```
+
+CORE listens on `127.0.0.1:18800`; CUE A2A listener on `127.0.0.1:18801`; admin API on `127.0.0.1:19000`.
+
+### Standalone (Python directly)
+
+```bash
+# 1. Install dependencies
 pip install aiohttp ruamel.yaml jsonschema croniter structlog
 
-# 2. Start AgentWire-Core
-git clone https://github.com/DerekEXS/agentwire-core.git
-cd agentwire-core/server
-pip install -r requirements.txt
-echo "my-token-123" > /tmp/agentwire.token
-python3 start.py --host 127.0.0.1 --port 18800 --token-file /tmp/agentwire.token
-cd ../..
-
-# 3. Start cue host
-cd agentwire-cue
+# 2. Start AgentWire-Core first (see its README)
+# 3. Start CUE host
 python3 -m agentwire_cue host \
   --plugin-dir ./plugins \
   --a2a-url http://127.0.0.1:18800 \
@@ -122,15 +146,20 @@ statechart:
     idle: {}
 ```
 
-A v1.4.3 plugin using history:
+A v1.4.8+ plugin using history with peer aliases:
 
 ```yaml
 id: pawly_responder
 version: 1.0.0
 
+peers:
+  Pawly:
+    uuid: "Pawly-demo-uuid"
+    url: "http://pawly:18800"
+
 triggers:
   - name: pawly_replied
-    type: history_change      # v1.4.3
+    type: history_change
     peer: "Pawly"
     granularity: round
     poll_interval_seconds: 30
@@ -154,6 +183,8 @@ statechart:
         - { target: watching }
 ```
 
+For more details, see [`skill/PLUGIN_AUTHORING.md`](skill/PLUGIN_AUTHORING.md).
+
 ## CLI
 
 ```bash
@@ -166,54 +197,64 @@ python3 -m agentwire_cue validate plugins/my_plugin.yaml
 # Trigger a plugin manually
 python3 -m agentwire_cue trigger my_plugin manual --payload '{"foo": "bar"}'
 
-# Show status
-python3 -m agentwire_cue status
+# Run pre-flight doctor (local checks only)
+python3 -m agentwire_cue doctor --no-network
+
+# Run pre-flight doctor (full, including CORE reachability probes)
+python3 -m agentwire_cue doctor
 ```
 
 ## Documentation
 
 - [skill/SKILL.md](skill/SKILL.md) — quickstart overview
-- [skill/PLUGIN_AUTHORING.md](skill/PLUGIN_AUTHORING.md) — full plugin authoring guide
-- [skill/EXPRESSION_REFERENCE.md](skill/EXPRESSION_REFERENCE.md) — expression grammar
-- [skill/INTEGRATION_OpenClaw_Hermes_QwenPaw_Claude.md](skill/INTEGRATION_OpenClaw_Hermes_QwenPaw_Claude.md) — running on different platforms
+- [skill/PLUGIN_AUTHORING.md](skill/PLUGIN_AUTHORING.md) — full YAML field reference (v1.2 schema + all v1.5.x actions)
+- [skill/EXPRESSION_REFERENCE.md](skill/EXPRESSION_REFERENCE.md) — expression grammar (peers.*, history.*, event.*, context.*, meta.*)
+- [skill/INTEGRATION_OpenClaw_Hermes_QwenPaw_Claude.md](skill/INTEGRATION_OpenClaw_Hermes_QwenPaw_Claude.md) — platform integration
+- [README-DOCKER.md](README-DOCKER.md) — Docker deployment details + migration from systemd
 
 ## Companion project
 
-AgentWire-Cue requires [AgentWire-Core](https://github.com/DerekEXS/agentwire-core) running on the same host (default `127.0.0.1:18800`). CORE provides:
-
-- The A2A v1.0.1 protocol surface (JSON-RPC, REST)
-- Bearer-token authentication
-- Per-peer message history persistence
-- Redaction pattern catalog
-- Metrics endpoint
+AgentWire-Cue requires [AgentWire-Core](https://github.com/DerekEXS/agentwire-core) running on the same host (default `127.0.0.1:18800`). CORE provides the A2A v1.0.1 protocol surface (JSON-RPC, REST), Bearer-token authentication with HMAC constant-time compare, per-peer JSONL message history (auto-redacted), redaction pattern catalog, TLS support, and metrics.
 
 ## Repository Structure
 
 ```
 agentwire-cue/
-├── core/                      # Library code
-│   ├── expression.py          # v1.4.3: + peers/history namespaces
-│   ├── history_client.py      # v1.4.3 new
-│   ├── history_proxy.py       # v1.4.3 new
-│   ├── redact.py              # v1.4.3 new
-│   ├── host.py                # v1.4.3: + history trigger wiring
-│   ├── trigger_impl.py        # v1.4.3: + HistoryChangeTrigger
-│   ├── statechart.py          # v1.4.3: + history_client in EvalEnv
-│   ├── a2a_client.py
-│   ├── loader.py
-│   ├── permission.py
+├── __init__.py                 # __version__ = "1.6.0"
+├── __main__.py                 # CLI entrypoint
+├── core/                       # Library code
+│   ├── host.py                 # Plugin host: load → startup → trigger registration
+│   ├── statechart.py           # Expression-based statechart engine (guard eval, actions)
+│   ├── expression.py           # Tokenizer + parser, method-call syntax
+│   ├── loader.py               # YAML loader + schema validation + on_exhaust checks
+│   ├── a2a_client.py           # A2A HTTP client + retry policy + peer card cache
+│   ├── history_client.py       # CORE JSON-RPC history proxy
+│   ├── history_proxy.py        # PeersNamespace for expression evaluation
+│   ├── permission.py           # PermissionEnforcer (persist/network/subprocess/secret/admin)
+│   ├── observability.py        # Structured JSON-line observability (trace_id, emit)
+│   ├── redact.py               # RedactClient (pattern pull from CORE /redact/patterns)
+│   ├── trigger_impl.py         # HistoryChangeTrigger config polling
+│   ├── doctor.py               # Pre-flight health checks
+│   ├── sandbox.py              # 4-layer path sandbox
 │   └── ...
-├── skill/                     # v1.4.3 new: agent documentation
+├── skill/                      # Agent-facing documentation
 │   ├── SKILL.md / SKILL_CN.md
 │   ├── PLUGIN_AUTHORING.md
 │   ├── EXPRESSION_REFERENCE.md
 │   └── INTEGRATION_OpenClaw_Hermes_QwenPaw_Claude.md
-├── examples/                  # Demo cue plugins
-├── tests/                     # 250+ unit tests
+├── tests/                      # 330+ unit tests (334 passed, 6 skipped)
+├── examples/                   # Demo cue plugins
+│   ├── echo-with-persist.yaml  # v0.4.0
+│   ├── cron-driven.yaml
+│   ├── a2a-with-fallback.yaml
+│   ├── file-watcher.yaml
+│   └── owner-alert/cue.yaml    # history_change killer example
 ├── schema/
-│   └── plugin.schema.json
-├── __main__.py                # CLI entrypoint
-└── README.md
+│   └── plugin.schema.json      # agentwire/v1.2 JSON Schema
+├── Dockerfile                  # v1.5.3: python:3.13-slim, non-root agentwire user
+├── docker-compose.yml          # Unified CORE + CUE Compose (loopback-published)
+├── README.md
+└── README-DOCKER.md
 ```
 
 ## Protocol
@@ -223,15 +264,38 @@ agentwire-cue/
 
 ## Deployment
 
-> ⚠️ **v1.4.6 deployment note**: AgentWire-Cue uses plain HTTP (not HTTPS). The `Authorization: Bearer <token>` header is therefore transmitted **in cleartext** on the wire. The 18801 A2A listener **binds `0.0.0.0` by default** (LAN-reachable for peer agents) — unlike CORE's 18800 which is loopback-default.
+> **Docker Compose is the canonical deployment method** (CUE v1.6.0+). See the repo root `docker-compose.yml`.
+
+Docker images: CORE `agentwire-core:v1.5.5` / CUE `agentwire-cue:v1.6.0`. Both bind `127.0.0.1` by default.
+All ports are published on host-loopback only.
+
+### Docker Compose (recommended)
+
+```bash
+cd agentwire-cue
+mkdir -p secrets
+printf '%s\n' 'YOUR_A2A_TOKEN' > secrets/a2a-token.txt
+printf '%s\n' 'YOUR_CUE_ADMIN_TOKEN' > secrets/cue-admin-token.txt
+chmod 600 secrets/*.txt
+docker compose up -d
+```
+
+See [`README-DOCKER.md`](README-DOCKER.md) for migration from old systemd/nohup deployments,
+history volume migration, and production owner-alert configuration.
+
+### Security notes
+
+- A2A listener + admin API both default `127.0.0.1` (since v1.5.5). Bind `0.0.0.0` requires
+  explicit `--a2a-listener-host 0.0.0.0` / `--admin-host 0.0.0.0` flags and logs a
+  startup warning.
+- `/a2a/inbound` requires the CUE admin token for Bearer auth (v1.5.5 breaking change —
+  old A2A tokens are no longer accepted).
+- Non-loopback bind with no auth token configured returns HTTP 403 on inbound (v1.5.6).
+- `send_a2a` enforces `permissions.peers` allowlists when present (v1.5.5).
 
 **Suitable for**: loopback, private LAN, Tailscale, WireGuard
 
-**NOT suitable for**: direct public-internet exposure
-
-**If you must expose**: TLS-terminating reverse proxy (nginx / Caddy / Traefik / Cloudflare Tunnel) is REQUIRED for both 18801 (A2A listener) and 19000 (admin API). Bind AgentWire-Cue to loopback only; the proxy exposes the public port.
-
-A future release (v1.5+) may add `CUE_LISTEN_HOST` env var (default `127.0.0.1`) for opt-in loopback binding.
+**NOT suitable for**: direct public-internet exposure without TLS-terminating reverse proxy
 
 ## References
 
