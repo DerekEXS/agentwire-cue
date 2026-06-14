@@ -1,4 +1,4 @@
-# AgentWire-Cue SKILL 中文版 (v1.6.1)
+# AgentWire-Cue SKILL 中文版 (v1.6.2)
 
 > **语言**: 简体中文 | [English](SKILL.md)
 
@@ -142,7 +142,34 @@ spec:
 |------|-------------|------|
 | `cron` | 定时表达式匹配 | `expression`, `timezone` |
 | `a2a_message_type` | 18801 收到入站 A2A 消息 | `match: "*"` 或具体类型 |
+| `a2a_content_match` (v1.6.1+) | 入站 A2A 消息文本命中至少 `min_match` 个关键词 | `contains` (必填)、`min_match` (默认 1)、`peer` (可选过滤) |
 | `history_change` (v1.4.3) | peer 轮数变化 | `peer`, `granularity: round`, `poll_interval_seconds` |
+
+### `a2a_content_match` event payload
+
+`a2a_content_match` 触发后,statechart event 暴露:
+
+| 字段 | 类型 | 说明 |
+|-------|------|-------------|
+| `event.peer` | str | 发送方 peer alias（无 `peer` 过滤时取 `event.peer`） |
+| `event.peer_uuid` | str | CORE peer uuid |
+| `event.text` | str | 所有 `text` parts 拼接后的文本 |
+| `event.parts` | list[dict] | 完整 parts 数组 |
+| `event.metadata` | dict | 消息 metadata（含 workflow_pointer 等） |
+| `event.matched_keywords` | list[str] | 实际匹配到的关键词列表 (v1.6.2) |
+| `event.contains_count` | int | `contains` 关键词总数 (v1.6.2) |
+
+示例:
+
+```yaml
+triggers:
+  - id: on-script-received
+    type: a2a_content_match
+    config:
+      contains: ["project:", "scenes:"]
+      min_match: 2
+      peer: "Pawly"  # 可选: 只匹配来自 Pawly 的消息
+```
 
 ## 动作
 

@@ -14,7 +14,11 @@ spec:
   triggers:
     - id: any-incoming
       type: a2a_message_type
-      config: { match: "*" }
+      config:
+        # v1.6.2: match "*" intentionally kept — this plugin intercepts any
+        # inbound A2A message regardless of the sender's type envelope, so the
+        # fallback dispatcher can demonstrate A2A_EXHAUSTED path.
+        match: "*"
 
   statechart:
     initial: idle

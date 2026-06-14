@@ -1,4 +1,4 @@
-# AgentWire-Cue SKILL (v1.6.1)
+# AgentWire-Cue SKILL (v1.6.2)
 
 > **Language**: English | [中文版 (SKILL_CN.md)](SKILL_CN.md)
 
@@ -177,7 +177,34 @@ Methods on `peers.<name>.history`:
 |------|-------------|---------------|
 | `cron` | Cron expression matches | `expression`, `timezone` |
 | `a2a_message_type` | Inbound A2A message arrives on 18801 | `match: "*"` or specific type string |
+| `a2a_content_match` (v1.6.1+) | Inbound A2A message text contains ≥ `min_match` of the listed keywords | `contains` (list, required), `min_match` (default 1), `peer` (optional filter) |
 | `history_change` (v1.4.3) | Peer round count changes | `peer`, `granularity: round`, `poll_interval_seconds` |
+
+### `a2a_content_match` event payload
+
+When a `a2a_content_match` trigger fires, the resulting statechart event exposes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event.peer` | str | The peer alias of the sender (or `event.peer` from the message if no `peer` filter) |
+| `event.peer_uuid` | str | CORE peer uuid of the sender |
+| `event.text` | str | Concatenated text content of all `text` parts |
+| `event.parts` | list[dict] | Full `parts` array from the A2A message |
+| `event.metadata` | dict | `message.metadata` (workflow_pointer etc.) |
+| `event.matched_keywords` | list[str] | The actual keyword strings that matched (v1.6.2) |
+| `event.contains_count` | int | Total number of `contains` keywords searched (v1.6.2) |
+
+Example:
+
+```yaml
+triggers:
+  - id: on-script-received
+    type: a2a_content_match
+    config:
+      contains: ["project:", "scenes:"]
+      min_match: 2
+      peer: "Pawly"  # optional: only match messages from Pawly
+```
 
 ## Actions
 

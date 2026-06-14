@@ -14,7 +14,11 @@ spec:
   triggers:
     - id: any-incoming
       type: a2a_message_type
-      config: { match: "*" }
+      config:
+        # v1.6.2: match "*" intentionally kept — this plugin acts as a generic
+        # file writer that logs every inbound A2A message regardless of the
+        # sender's type envelope, demonstrating the write_file action + sandbox.
+        match: "*"
 
   statechart:
     initial: idle

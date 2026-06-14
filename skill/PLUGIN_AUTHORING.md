@@ -1,4 +1,4 @@
-# Cue Plugin Authoring Guide (v1.6.1)
+# Cue Plugin Authoring Guide (v1.6.2)
 
 > Detailed reference for writing `*.yaml` plugin files for AgentWire-Cue.
 > See [SKILL.md](SKILL.md) for the high-level overview.
@@ -77,6 +77,67 @@ permissions:
   subprocess:
     allow: ["echo", "date"]  # executable basenames
 ```
+
+## `spec.peers` — peer alias table (v1.4.8+)
+
+Stable history lookups + direct A2A routing. Each entry is keyed by alias name:
+
+```yaml
+spec:
+  peers:
+    Pawly:
+      uuid: "628b49d96dcde97a"
+      url: "http://100.125.41.16:18800"
+      description: "小爪 - QwenPaw @ 阿里云"
+    main:
+      uuid: "main-demo-uuid"
+      url: "http://127.0.0.1:18800"
+      description: "初梦 - OpenClaw @ 本地"
+```
+
+`uuid` and `url` are required. The alias table is installed on both the
+shared `HistoryClient` and the `A2AClient` so expressions and outbound sends
+both resolve the alias transparently.
+
+### Per-peer A2A token (v1.6.1+)
+
+When CUE needs to access a remote peer's CORE (history queries, `send_a2a`
+delivery), it must use that peer's A2A token, not the local CORE token.
+Each peer entry can carry its own auth:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `token` | str | Literal token value (avoid in git-tracked YAMLs) |
+| `token_env` | str | Read token from this env var (recommended) |
+| `token_file` | str | Read token from this file path (Docker secrets friendly) |
+
+**Resolution priority**: `token_file` > `token_env` > `token` (literal) >
+default local CORE token. If a peer has none of the three fields, CUE
+falls back to the local CORE token unchanged (backward compatible).
+
+```yaml
+spec:
+  peers:
+    Pawly:
+      uuid: "628b49d96dcde97a"
+      url: "http://100.125.41.16:18800"
+      # v1.6.1: per-peer auth for remote CORE
+      token_env: "PAWLY_A2A_TOKEN"            # recommended
+      # token_file: "/run/secrets/pawly-token"  # Docker secrets
+      # token: "ee8d74..."                    # literal (NOT recommended)
+```
+
+**When to use**:
+- Multi-CORE deployments where each CORE has its own A2A token
+- CUE reads `peers.<alias>.history` in guard expressions (owner-alert style)
+- CUE sends `send_a2a` to a remote peer
+
+**Security recommendations**:
+- Prefer `token_env` (Docker compose `environment`) or `token_file`
+  (Docker secrets) over `token` literal values that may land in git
+- `token_file` paths should be `chmod 600` and not world-readable
+- `token_file` is read on every send/history call, so rotating credentials
+  at runtime takes effect on the next call (no host restart needed)
 
 ## State anatomy
 

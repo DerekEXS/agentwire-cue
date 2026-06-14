@@ -357,12 +357,12 @@ class ContentMatchTrigger(Trigger):
         if not text:
             return
 
-        matched = sum(1 for kw in self.contains if kw in text)
-        if matched < self.min_match:
+        matched_kws = [kw for kw in self.contains if kw in text]
+        if len(matched_kws) < self.min_match:
             return
 
         log.info("a2a_content_match trigger %s fired: matched %d/%d keywords",
-                 self.id, matched, len(self.contains))
+                 self.id, len(matched_kws), len(self.contains))
 
         try:
             from .statechart import Event, run_tracked_transition
@@ -376,7 +376,8 @@ class ContentMatchTrigger(Trigger):
                         'text': text,
                         'parts': message.get('parts', []),
                         'metadata': message.get('metadata', {}),
-                        'matched_keywords': matched,
+                        'matched_keywords': matched_kws,  # v1.6.2: list of actually-matched keyword strings
+                        'contains_count': len(self.contains),  # v1.6.2: total keywords searched
                     },
                     message_id=message.get('message_id'),
                 ),

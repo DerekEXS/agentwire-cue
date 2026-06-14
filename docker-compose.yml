@@ -4,6 +4,14 @@ services:
       context: ../agentwire_core
     image: agentwire-core:v1.5.5
     container_name: agentwire-core
+    # v1.6.2: WSL2 环境下必须使用 host 网络模式
+    #   - bridge 模式无法绑定 Tailscale IP (100.70.166.21) — 容器端口只能到 WSL localhost
+    #   - bridge 模式绑定 0.0.0.0:18800 会与 Windows svchost (iphlpsvc) 端口冲突
+    #   - host 模式下容器直接使用 WSL 网络栈，可正常接受 Tailscale 入站连接
+    # 安全注意事项:
+    #   - 容器失去网络隔离，18800 端口绑定到 WSL 所有网络接口
+    #   - 生产环境请确保 WSL 防火墙仅放行 tailscale0 接口的入站连接
+    #   - 标准 Linux 服务器部署建议改回 bridge 模式 + ports 端口映射
     network_mode: host
     volumes:
       - core_history:/data/history
@@ -26,8 +34,10 @@ services:
   agentwire-cue:
     build:
       context: .
-    image: agentwire-cue:v1.6.0
+    image: agentwire-cue:v1.6.2
     container_name: agentwire-cue
+    # v1.6.2: 跟随 CORE 用 host 网络模式（同样 WSL2 Tailscale 兼容原因）
+    # 18801/19000 通过下方 ports 映射限制仅 host loopback 可达
     network_mode: host
     ports:
       - "127.0.0.1:${CUE_API_PORT:-18801}:18801"

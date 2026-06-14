@@ -12,6 +12,33 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.6.2] - 2026-06-15
+
+### Fixed
+- `core/trigger_impl.py::ContentMatchTrigger` now sets `event.matched_keywords`
+  to a list of actually-matched keyword strings (was: an int count) and adds
+  the new `event.contains_count` field (int, total keywords searched). This
+  fixes `{{event.contains_count}}` template rendering in `script-receiver/cue.yaml`.
+
+### Documentation
+- `docker-compose.yml`: `network_mode: host` now has comments explaining the
+  WSL2/Tailscale requirement and the security trade-offs (lost network
+  isolation, recommend tailscale0-only firewall on WSL).
+- `SKILL.md` + `SKILL_CN.md`: added `a2a_content_match` row to the Triggers
+  table and a dedicated event-payload subsection listing all `event.*` fields
+  with their types.
+- `PLUGIN_AUTHORING.md`: new `spec.peers` section covering the peer alias
+  table plus the v1.6.1 per-peer A2A token fields (`token`, `token_env`,
+  `token_file`) with priority, examples, and security recommendations.
+- `examples/a2a-with-fallback.yaml` + `examples/file-watcher.yaml`: added
+  inline comments on `match: "*"` explaining why each plugin intentionally
+  matches all inbound A2A messages.
+
+### Tests
+- Full CUE suite: target 335 passed, 6 skipped.
+- Added v1.6.2 coverage for `matched_keywords` list semantics and the new
+  `contains_count` field.
+
 ## [v1.6.1] - 2026-06-14
 
 ### Added
