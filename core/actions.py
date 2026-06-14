@@ -49,13 +49,16 @@ async def _action_write_file(action: dict, env: "EvalEnv") -> None:
     if plugin is None:
         raise ActionError(f"plugin {env.plugin_name!r} not registered with action installer")
     path_str = action["with"]["path"]
+    # v1.6.1: render template variables in path as well
+    from .expression import render_template
+    if "{{" in str(path_str):
+        path_str = render_template(str(path_str), env.as_dict())
     mode = action["with"].get("mode", "write")
     decision = enforcer.check_filesystem(env.plugin_name, path_str, mode)
     if not decision:
         raise ActionError(f"permission denied: {decision.detail}")
     content = action["with"]["content"]
     # Render template if it contains {{...}}
-    from .expression import render_template
     if "{{" in str(content):
         content = render_template(str(content), env.as_dict())
     p = Path(os.path.expanduser(path_str))

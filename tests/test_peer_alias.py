@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core"))
 
 # ---------- 准备：fake HistoryClient 单元 ----------
 class _FakeRPCRaising:
-    def _rpc(self, method, params):
+    def _rpc(self, method, params, token=None):
         raise AssertionError(f"unexpected RPC {method} params={params}")
 
 
@@ -39,7 +39,7 @@ def test_list_messages_resolves_alias_to_uuid_before_calling_core():
     seen = {}
 
     class _Rpc:
-        def __call__(self, method, params):
+        def __call__(self, method, params, token=None):
             seen.setdefault("calls", []).append((method, params))
             return {"messages": [{"role": "inbound", "parts": [{"type": "text", "text": "urgent: hi"}]}]}
 
@@ -69,7 +69,7 @@ def test_list_messages_accepts_uuid_when_alias_table_is_configured():
     seen = {}
     client = _make_history_client(aliases={"Pawly": {"uuid": "pawly-demo-uuid", "url": "http://pawly.example.invalid:18800"}})
 
-    def _rpc(method, params):
+    def _rpc(method, params, token=None):
         seen["params"] = params
         return {"messages": [{"role": "inbound"}]}
 
@@ -89,7 +89,7 @@ def test_list_messages_raises_peer_not_configured_when_alias_map_is_empty():
     client = _make_history_client(aliases={})
     captured = {}
 
-    def _rpc(method, params):
+    def _rpc(method, params, token=None):
         captured["params"] = params
         return {"messages": []}
 

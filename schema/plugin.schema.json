@@ -91,7 +91,7 @@
         },
         "peers": {
           "type": "object",
-          "description": "v1.4.8: peer alias table. Keyed by alias name. uuid and url are required; description is optional.",
+          "description": "v1.4.8: peer alias table. Keyed by alias name. uuid and url are required; token/token_env/token_file are optional per-peer auth (v1.6.1).",
           "additionalProperties": {
             "type": "object",
             "required": ["uuid", "url"],
@@ -99,7 +99,10 @@
             "properties": {
               "uuid": { "type": "string", "minLength": 1 },
               "url": { "type": "string", "minLength": 1 },
-              "description": { "type": "string" }
+              "description": { "type": "string" },
+              "token": { "type": "string", "description": "v1.6.1: literal A2A token for this peer" },
+              "token_env": { "type": "string", "description": "v1.6.1: env var name containing the A2A token" },
+              "token_file": { "type": "string", "description": "v1.6.1: path to file containing the A2A token" }
             }
           }
         },
@@ -143,6 +146,7 @@
           "type": "string",
           "enum": [
             "a2a_message_type",
+            "a2a_content_match",
             "cron",
             "history_change"
           ]
@@ -236,6 +240,46 @@
                     "maximum": 600,
                     "default": 30,
                     "description": "v1.4.3: how often to poll CORE /messages/peers. Default 30s."
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "a2a_content_match"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "config": {
+                "required": [
+                  "contains"
+                ],
+                "properties": {
+                  "contains": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "v1.6.1: keywords to search for in message text. At least one required."
+                  },
+                  "min_match": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 1,
+                    "description": "v1.6.1: minimum number of keywords that must be found. Default 1."
+                  },
+                  "peer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "v1.6.1: restrict to messages from this peer alias. Omit for any peer."
                   }
                 }
               }

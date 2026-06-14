@@ -12,6 +12,39 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.6.1] - 2026-06-14
+
+### Added
+- **Per-peer A2A token**: `spec.peers.<alias>` now supports optional `token`,
+  `token_env`, and `token_file` fields for authenticating to remote peer COREs.
+  Priority: `token_file` > `token_env` > `token` (literal) > default local CORE
+  token. Used for history access (`HistoryClient`) and `send_a2a` requests
+  (`A2AClient.send_message`). Backward compatible: peers without token config
+  use the local CORE token unchanged.
+- **`a2a_content_match` trigger**: new trigger type that matches inbound A2A
+  messages by text content. Config: `contains` (list of keyword strings),
+  `min_match` (minimum keyword count, default 1), optional `peer` filter.
+  Event payload exposes `event.peer`, `event.peer_uuid`, `event.text`,
+  `event.parts`, `event.metadata`.
+- **`script-receiver` example plugin**: receives video scripts from Pawly via
+  A2A, writes them to disk (`write_file`), and notifies the main agent via
+  `send_a2a` with workflow-pointer metadata.
+- **`write_file` path template rendering**: `with.path` now renders `{{...}}`
+  template variables (previously only `with.content` was rendered).
+- **`owner-alert` example**: Pawly peer now includes `token_env: "PAWLY_A2A_TOKEN"`
+  demonstrating per-peer token usage.
+
+### Changed
+- `plugin.schema.json`: `spec.peers` properties now accept `token`, `token_env`,
+  `token_file` (optional). New `a2a_content_match` trigger type with validation.
+- `CORE` image tag in compose bumped to `agentwire-core:v1.5.5`.
+
+### Tests
+- Added v1.6.1 coverage for per-peer token resolution, header propagation in
+  `send_message`, `HistoryClient._rpc` token passthrough, and `write_file` path
+  template rendering.
+- Full CUE suite: 333 passed, 6 skipped, 1 flaky (P50 timing).
+
 ## [v1.6.0] - 2026-06-13
 
 ### Production Ready Milestone

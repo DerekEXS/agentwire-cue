@@ -4,8 +4,7 @@ services:
       context: ../agentwire_core
     image: agentwire-core:v1.5.5
     container_name: agentwire-core
-    ports:
-      - "127.0.0.1:${CORE_PORT:-18800}:18800"
+    network_mode: host
     volumes:
       - core_history:/data/history
       - core_peers:/data/peers
@@ -29,6 +28,7 @@ services:
       context: .
     image: agentwire-cue:v1.6.0
     container_name: agentwire-cue
+    network_mode: host
     ports:
       - "127.0.0.1:${CUE_API_PORT:-18801}:18801"
       - "127.0.0.1:${CUE_ADMIN_PORT:-19000}:19000"

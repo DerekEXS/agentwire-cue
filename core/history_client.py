@@ -10,9 +10,11 @@ Cue plugin expressions and triggers can then read history via
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from threading import RLock
 from typing import Any
 
@@ -70,7 +72,36 @@ class HistoryClient:
             )
         return meta["uuid"]
 
-    def _rpc(self, method: str, params: dict) -> dict:
+    def _resolve_peer_token(self, peer: str) -> str:
+        """v1.6.1: resolve per-peer A2A token from alias metadata.
+
+        Priority: token_file > token_env > token (literal) > default self.token.
+        """
+        if not self._aliases:
+            return self.token
+        meta = self._aliases.get(peer)
+        if meta is None:
+            return self.token
+        token_file = meta.get('token_file')
+        if token_file:
+            try:
+                with open(token_file, 'r') as fh:
+                    val = fh.read().strip()
+                if val:
+                    return val
+            except (OSError, PermissionError):
+                pass
+        token_env = meta.get('token_env')
+        if token_env:
+            val = os.environ.get(token_env)
+            if val:
+                return val
+        token_literal = meta.get('token')
+        if token_literal:
+            return token_literal
+        return self.token
+
+    def _rpc(self, method: str, params: dict, token: str | None = None) -> dict:
         body = json.dumps({
             "jsonrpc": "2.0",
             "id": 1,
@@ -82,7 +113,7 @@ class HistoryClient:
             data=body,
             method="POST",
             headers={
-                "Authorization": f"Bearer {self.token}",
+                "Authorization": f"Bearer {token or self.token}",
                 "Content-Type": "application/json",
             },
         )
@@ -117,17 +148,19 @@ class HistoryClient:
 
         v1.4.8: when a peer alias table is configured, the alias is resolved
         to its uuid before contacting CORE.
+        v1.6.1: per-peer token used when configured on the alias.
         """
         target = self._resolve_alias(peer)
         key = ("list", target, limit, since_round)
         cached = self._get_cached(key)
         if cached is not None:
             return cached
+        peer_token = self._resolve_peer_token(peer) if self._aliases else self.token
         result = self._rpc("messages/list", {
             "peer_uuid": target,
             "limit": limit,
             "since_round": since_round,
-        })
+        }, token=peer_token)
         msgs = result.get("messages", [])
         self._set_cached(key, msgs)
         return msgs

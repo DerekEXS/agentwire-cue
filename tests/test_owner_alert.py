@@ -175,7 +175,7 @@ def test_owner_alert_demo_has_main_peer_alias():
     p = load_plugin(OWNER_ALERT_YAML)
     assert p is not None
     assert "main" in p.peers
-    assert p.peers["main"]["url"] == "http://agentwire-core:18800"
+    assert p.peers["main"]["url"] == "http://127.0.0.1:18800"
 
 
 def test_two_history_change_triggers_registered():

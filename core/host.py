@@ -22,7 +22,7 @@ from .loader import load_all
 from .permission import PermissionEnforcer
 from .statechart import now_ms as _now_ms
 from .trigger import TriggerScheduler, TriggerSetupError
-from .trigger_impl import A2ATrigger, CronTrigger
+from .trigger_impl import A2ATrigger, ContentMatchTrigger, CronTrigger
 
 log = logging.getLogger("agentwire_cue.host")
 
@@ -292,6 +292,8 @@ class Host:
                     all_triggers.append(CronTrigger(t_def.__dict__, p))
                 elif ttype == 'a2a_message_type':
                     all_triggers.append(A2ATrigger(t_def.__dict__, p, a2a_listener=self.a2a_listener))
+                elif ttype == 'a2a_content_match':  # v1.6.1
+                    all_triggers.append(ContentMatchTrigger(t_def.__dict__, p, a2a_listener=self.a2a_listener))
                 elif ttype == 'history_change':  # v1.4.3
                     all_triggers.append(HistoryChangeTrigger(t_def.__dict__, p, history_client=history_client))
                 else:

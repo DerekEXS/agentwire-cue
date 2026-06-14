@@ -18,13 +18,14 @@ async def test_send_message_normalizes_text_to_a2a_parts():
         async def __aexit__(self, *exc): return False
 
     class FakePost:
-        def __init__(self, url, json):
+        def __init__(self, url, json, headers=None):
             captured["payload"] = json
+            captured["headers"] = headers
         async def __aenter__(self): return FakeResponse()
         async def __aexit__(self, *exc): return False
 
     class FakeSession:
-        def post(self, url, json): return FakePost(url, json)
+        def post(self, url, json, headers=None): return FakePost(url, json, headers=headers)
 
     client._session = FakeSession()
 
@@ -38,6 +39,8 @@ async def test_send_message_normalizes_text_to_a2a_parts():
     assert message["role"] == "user"
     assert message["parts"] == [{"type": "text", "text": "hello"}]
     assert message["metadata"] == {"source_peer": "Pawly"}
+    # v1.6.1: per-peer token should be used (main has no token config → falls back to "dummy")
+    assert captured["headers"] == {"Authorization": "Bearer dummy"}
 
 
 @pytest.mark.asyncio
@@ -49,4 +52,4 @@ async def test_agent_card_reports_current_version():
     response = await listener._handle_agent_card(request)
 
     assert response.status == 200
-    assert '"version": "1.6.0"' in response.text
+    assert '"version": "1.6.1"' in response.text

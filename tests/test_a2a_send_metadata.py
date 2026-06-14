@@ -45,7 +45,7 @@ async def test_send_message_uses_alias_url_directly():
             return False
 
     class _FakePost:
-        def __init__(self, url, json):
+        def __init__(self, url, json, headers=None):
             captured["url"] = url
             captured["payload"] = json
 
@@ -56,8 +56,8 @@ async def test_send_message_uses_alias_url_directly():
             return False
 
     class _FakeSession:
-        def post(self, url, json):
-            return _FakePost(url, json)
+        def post(self, url, json, headers=None):
+            return _FakePost(url, json, headers=headers)
 
     client._session = _FakeSession()
 
@@ -87,7 +87,7 @@ async def test_send_message_metadata_passed_through_when_supplied():
             return False
 
     class _FakePost:
-        def __init__(self, url, json):
+        def __init__(self, url, json, headers=None):
             captured["payload"] = json
 
         async def __aenter__(self):
@@ -97,8 +97,8 @@ async def test_send_message_metadata_passed_through_when_supplied():
             return False
 
     class _FakeSession:
-        def post(self, url, json):
-            return _FakePost(url, json)
+        def post(self, url, json, headers=None):
+            return _FakePost(url, json, headers=headers)
 
     client._session = _FakeSession()
     metadata = {"workflow_pointer": {"workflow_file": "wf.yaml", "current_step": "step_5"}}

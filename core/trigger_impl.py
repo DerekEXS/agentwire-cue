@@ -291,3 +291,99 @@ class HistoryChangeTrigger(Trigger):
                 await self._task
             except (asyncio.CancelledError, Exception):
                 pass
+
+
+# ---------- ContentMatchTrigger (v1.6.1) ----------
+
+class ContentMatchTrigger(Trigger):
+    """v1.6.1: matches inbound A2A messages by text content.
+
+    Checks whether the message text (all text parts concatenated) contains
+    enough keywords from ``contains``. Optionally filters to a specific peer.
+
+    Config keys:
+      - contains (list[str]): keywords to search for in message text
+      - min_match (int, default 1): minimum keywords that must match
+      - peer (str, optional): restrict to messages from this peer alias
+    """
+
+    def __init__(self, trigger_def: dict, plugin, a2a_listener=None):
+        super().__init__(trigger_def, plugin)
+        self.contains: list[str] = self.config.get('contains', [])
+        self.min_match: int = int(self.config.get('min_match', 1))
+        self.peer_filter: str | None = self.config.get('peer') or None
+        self._a2a_listener = a2a_listener
+        self._registered = False
+
+    async def setup(self) -> None:
+        if self._a2a_listener is None:
+            raise TriggerSetupError(
+                f"a2a_content_match trigger {self.id!r}: no a2a_listener provided. "
+                f"Host must pass listener when constructing trigger."
+            )
+        if not self.contains:
+            raise TriggerSetupError(
+                f"a2a_content_match trigger {self.id!r}: 'contains' list is required and must not be empty"
+            )
+        self._a2a_listener.register_handler(self._on_message)
+        self._registered = True
+        log.info("a2a_content_match trigger %s registered (contains=%s, min_match=%d, peer=%s)",
+                 self.id, self.contains, self.min_match, self.peer_filter or '*')
+
+    def matches(self, payload: dict) -> bool:
+        return False  # check happens in _on_message, not via the simple matches()
+
+    def _extract_message_text(self, message: dict) -> str:
+        """Extract all text from message parts."""
+        parts = message.get('parts', [])
+        texts = []
+        for part in parts:
+            if isinstance(part, dict) and part.get('type') == 'text':
+                t = part.get('text', '')
+                if t:
+                    texts.append(t)
+            elif isinstance(part, str):
+                texts.append(part)
+        return ' '.join(texts)
+
+    async def _on_message(self, message: dict) -> None:
+        # Peer filter
+        if self.peer_filter:
+            msg_peer = message.get('peer') or message.get('metadata', {}).get('source_peer', '')
+            if msg_peer != self.peer_filter:
+                return
+
+        text = self._extract_message_text(message)
+        if not text:
+            return
+
+        matched = sum(1 for kw in self.contains if kw in text)
+        if matched < self.min_match:
+            return
+
+        log.info("a2a_content_match trigger %s fired: matched %d/%d keywords",
+                 self.id, matched, len(self.contains))
+
+        try:
+            from .statechart import Event, run_tracked_transition
+            await run_tracked_transition(
+                self.plugin,
+                Event(
+                    type='content_match',
+                    payload={
+                        'peer': self.peer_filter or message.get('peer', 'unknown'),
+                        'peer_uuid': message.get('peer_uuid', ''),
+                        'text': text,
+                        'parts': message.get('parts', []),
+                        'metadata': message.get('metadata', {}),
+                        'matched_keywords': matched,
+                    },
+                    message_id=message.get('message_id'),
+                ),
+                source='content_match',
+            )
+        except Exception as e:
+            log.exception("a2a_content_match trigger %s fire failed: %s", self.id, e)
+
+    async def teardown(self) -> None:
+        self._registered = False

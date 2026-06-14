@@ -34,7 +34,7 @@ from .sandbox import (
 )
 
 log = logging.getLogger("agentwire_cue.a2a_client")
-CUE_VERSION = "1.6.0"
+CUE_VERSION = "1.6.1"
 
 
 def now_ms() -> int:
@@ -242,6 +242,36 @@ class A2AClient:
             return None
         return inbound.rsplit('/a2a/inbound', 1)[0] if '/a2a/inbound' in inbound else inbound
 
+    def resolve_peer_token(self, peer_id: str) -> str:
+        """v1.6.1: resolve per-peer A2A token from alias metadata.
+
+        Priority: token_file > token_env > token (literal) > default self.a2a_token.
+        When the peer alias is missing, returns self.a2a_token unchanged.
+        token_file / token_env are read per-call (not cached at startup)
+        so rotating credentials takes effect on the next call.
+        """
+        alias = self._aliases.get(peer_id)
+        if alias is None:
+            return self.a2a_token or ''
+        token_file = alias.get('token_file')
+        if token_file:
+            try:
+                with open(token_file, 'r') as fh:
+                    val = fh.read().strip()
+                if val:
+                    return val
+            except (OSError, PermissionError):
+                pass
+        token_env = alias.get('token_env')
+        if token_env:
+            val = os.environ.get(token_env)
+            if val:
+                return val
+        token_literal = alias.get('token')
+        if token_literal:
+            return token_literal
+        return self.a2a_token or ''
+
     async def send_message(
         self,
         target_peer: str,
@@ -278,6 +308,9 @@ class A2AClient:
         if metadata is not None:
             outbound_message["metadata"] = metadata
 
+        # v1.6.1: resolve per-peer token (falls back to default if not configured)
+        peer_token = self.resolve_peer_token(target_peer)
+
         # Retry loop
         async def _do_send() -> SendResult:
             try:
@@ -294,7 +327,11 @@ class A2AClient:
                     'method': 'message/send',
                     'params': {'message': outbound_message},
                 }
-                async with session.post(url, json=payload) as resp:
+                # v1.6.1: use per-peer token if available
+                headers = {}
+                if peer_token:
+                    headers['Authorization'] = f'Bearer {peer_token}'
+                async with session.post(url, json=payload, headers=headers) as resp:
                     if resp.status == 200:
                         return SendResult.SUCCESS
                     log.warning("a2a send to %s HTTP %d", target_peer, resp.status)
