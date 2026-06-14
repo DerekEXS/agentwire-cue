@@ -1,4 +1,4 @@
-# Cue Integration: OpenClaw / Hermes / QwenPaw / Claude (v1.6.0)
+# Cue Integration: OpenClaw / Hermes / QwenPaw / Claude (v1.6.1)
 
 > How to install and run AgentWire-Cue on different agent platforms.
 

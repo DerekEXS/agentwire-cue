@@ -1,4 +1,4 @@
-# AgentWire-Cue SKILL 中文版 (v1.6.0)
+# AgentWire-Cue SKILL 中文版 (v1.6.1)
 
 > **语言**: 简体中文 | [English](SKILL.md)
 

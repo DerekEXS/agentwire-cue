@@ -1,0 +1,67 @@
+apiVersion: agentwire/v1.2
+kind: plugin
+
+metadata:
+  name: script-receiver
+  version: 1.0.0
+  description: |
+    v1.6.1: 接收小爪 A2A 视频脚本 → 保存文件 → 通知初梦。
+    监听包含 "project:" 和 "scenes:" 关键词的入站消息，
+    保存为 YAML 脚本文件，然后通过 send_a2a 通知初梦主 Agent。
+
+spec:
+  peers:
+    main:
+      uuid: "main-demo-uuid"
+      url: "http://127.0.0.1:18800"
+      description: "初梦主 Agent"
+
+  triggers:
+    - id: on-script-received
+      type: a2a_content_match
+      config:
+        contains:
+          - "project:"
+          - "scenes:"
+        min_match: 2
+
+  statechart:
+    initial: waiting
+    states:
+      waiting:
+        type: final
+        actions:
+          - type: write_file
+            with:
+              path: "/tmp/agentwire-scripts/{{event.peer}}/script_{{event.timestamp}}.yaml"
+              content: "{{event.text}}"
+
+          - type: send_a2a
+            with:
+              peer: main
+              message:
+                text: |
+                  收到脚本 from {{event.peer}}
+                  已保存到: /tmp/agentwire-scripts/{{event.peer}}/
+                  匹配关键词: {{event.matched_keywords}}/{{event.contains_count}}
+                  请按照 00_初梦工作流_完整版.yaml 执行后续流程
+              metadata:
+                workflow_pointer:
+                  workflow_file: "00_初梦工作流_完整版.yaml"
+                  workflow_version: "v3.0"
+                  current_step: "step_1_receive_script"
+                  next_action: "review_script"
+                  next_agent: "main"
+
+  secrets: []
+
+  permissions:
+    network: { http_egress: [], raw_socket: false }
+    filesystem:
+      - path: /tmp/agentwire-scripts
+        modes: [write]
+    subprocess: { allow: [] }
+    env: []
+    peers:
+      - main
+    timers: { max_concurrent: 3, min_interval_ms: 1000 }

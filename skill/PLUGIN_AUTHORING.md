@@ -1,4 +1,4 @@
-# Cue Plugin Authoring Guide (v1.6.0)
+# Cue Plugin Authoring Guide (v1.6.1)
 
 > Detailed reference for writing `*.yaml` plugin files for AgentWire-Cue.
 > See [SKILL.md](SKILL.md) for the high-level overview.

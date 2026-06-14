@@ -31,16 +31,19 @@ spec:
   # url 是 A2A send 路由目标。当未配置时 CUE 保留 legacy 行为（把 name 当 uuid 发 CORE）。
   peers:
     Pawly:
-      uuid: "pawly-demo-uuid"
-      url: "http://pawly.example.invalid:18800"
+      uuid: "628b49d96dcde97a"
+      url: "http://100.125.41.16:18800"
       description: "小爪 - QwenPaw @ 阿里云"
+      # v1.6.1: per-peer token for Pawly CORE auth (different from local CORE token).
+      # Set PAWLY_A2A_TOKEN env var or replace with token_file / token literal.
+      token_env: "PAWLY_A2A_TOKEN"
     初梦:
-      uuid: "chumeng-demo-uuid"
-      url: "http://agentwire-core:18800"
+      uuid: "209d9e1763883659"
+      url: "http://127.0.0.1:18800"
       description: "初梦 - OpenClaw @ 本地"
     main:
-      uuid: "main-demo-uuid"
-      url: "http://agentwire-core:18800"
+      uuid: "209d9e1763883659"
+      url: "http://127.0.0.1:18800"
       description: "主 agent 路由入口"
 
   triggers:
@@ -100,7 +103,7 @@ spec:
 
   permissions:
     network:
-      http_egress: ["localhost", "127.0.0.1", "agentwire-core"]
+      http_egress: ["localhost", "127.0.0.1", "agentwire-core", "100.125.41.16"]
       raw_socket: false
     filesystem: []
     subprocess: { allow: [] }

@@ -7,7 +7,7 @@
 [![A2A Protocol](https://img.shields.io/badge/A2A-v1.0.1-blue)](https://a2a-protocol.org/latest/specification/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
-[![Status](https://img.shields.io/badge/status-v1.6.0-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v1.6.0)
+[![Status](https://img.shields.io/badge/status-v1.6.1-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v1.6.1)
 
 ---
 
@@ -264,9 +264,9 @@ agentwire-cue/
 
 ## Deployment
 
-> **Docker Compose is the canonical deployment method** (CUE v1.6.0+). See the repo root `docker-compose.yml`.
+> **Docker Compose is the canonical deployment method** (CUE v1.6.1+). See the repo root `docker-compose.yml`.
 
-Docker images: CORE `agentwire-core:v1.5.5` / CUE `agentwire-cue:v1.6.0`. Both bind `127.0.0.1` by default.
+Docker images: CORE `agentwire-core:v1.5.5` / CUE `agentwire-cue:v1.6.1`. Both bind `127.0.0.1` by default.
 All ports are published on host-loopback only.
 
 ### Docker Compose (recommended)
