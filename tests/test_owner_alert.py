@@ -168,7 +168,8 @@ def test_yaml_load_and_schema_validate():
     p = load_plugin(OWNER_ALERT_YAML)
     assert p is not None, "owner-alert.yaml failed to load (schema mismatch?)"
     assert p.name == "owner-alert"
-    assert p.version == "1.5.0"
+    # v1.6.4: version bumped to align with sanitization release
+    assert p.version == "1.6.4"
 
 
 def test_owner_alert_demo_has_main_peer_alias():
@@ -184,8 +185,27 @@ def test_two_history_change_triggers_registered():
     assert len(p.triggers) == 2
     types = sorted(t.type for t in p.triggers)
     assert types == ["history_change", "history_change"]
+    # v1.6.4: peer slot names sanitized from user-personal names
+    # (Pawly / 初梦) to placeholder slot names (remote_peer_a / _b).
     peers = sorted(t.config["peer"] for t in p.triggers)
-    assert peers == ["Pawly", "初梦"]
+    assert peers == ["remote_peer_a", "remote_peer_b"]
+
+
+def test_owner_alert_no_personal_agent_names_in_peers():
+    """v1.6.4 regression guard: peer alias keys must not encode user names.
+
+    The example plugin must remain anonymous; real peer config goes
+    in *.local.yaml overlays (gitignored). If this fails, scrub the
+    cue.yaml back to placeholder naming.
+    """
+    p = load_plugin(OWNER_ALERT_YAML)
+    assert p is not None
+    forbidden = {"pawly", "chumeng", "chúmèng", "初梦", "小爪"}
+    for alias in p.peers:
+        assert alias.lower() not in forbidden, (
+            f"peer alias {alias!r} leaks user-personal naming; "
+            f"use a placeholder like remote_peer_a"
+        )
 
 
 def test_state_machine_single_state_watching():

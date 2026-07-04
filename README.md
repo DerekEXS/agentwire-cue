@@ -17,7 +17,7 @@ AgentWire-Cue is a **plugin host** that loads YAML-defined statecharts and react
 
 Use cue when you want to:
 - Define agent behaviors as **declarative YAML** (no Python boilerplate)
-- Trigger workflows from **message history** (e.g. "Pawly just said X")
+- Trigger workflows from **message history** (e.g. "<your-remote-peer-name> just said X")
 - Run **cron-style** background tasks that consult conversation context
 - Orchestrate **multi-peer** conversations across QwenPaw / OpenClaw / Hermes / Claude
 
@@ -27,7 +27,7 @@ Cue is **not** an agent framework. It does not generate responses. It executes t
 
 - **YAML plugin format** — triggers, statechart, actions, permissions (apiVersion `agentwire/v1.2`)
 - **Three trigger types** — `cron`, `a2a_message_type`, and `history_change` (v1.4.3)
-- **Expression engine** — `peers.<name>.history.*`, `history.*`, `event.*`, `context.*`, `meta.*`, `now.*` namespaces; method-call syntax `peers.Pawly.history.last_inbound_contains("keyword")` (v1.4.3)
+- **Expression engine** — `peers.<name>.history.*`, `history.*`, `event.*`, `context.*`, `meta.*`, `now.*` namespaces; method-call syntax `peers.<your-remote-peer-name>.history.last_inbound_contains("keyword")` (v1.4.3)
 - **`spec.peers` aliases** — peer UUID/URL table for stable history lookup and direct A2A routing (v1.4.8)
 - **`spec.requires` dependencies** — cross-plugin `plugins` / `peers` / `capabilities` dependency checking (v1.5.2)
 - **`send_a2a` with metadata** — optional `metadata` blocks with template rendering (v1.4.8)
@@ -149,18 +149,18 @@ statechart:
 A v1.4.8+ plugin using history with peer aliases:
 
 ```yaml
-id: pawly_responder
+id: remote-peer-responder
 version: 1.0.0
 
 peers:
-  Pawly:
-    uuid: "Pawly-demo-uuid"
-    url: "http://pawly:18800"
+  <your-remote-peer-name>:
+    uuid: "<your-remote-peer-name>-demo-uuid"
+    url: "http://<your-remote-peer-name>:18800"
 
 triggers:
-  - name: pawly_replied
+  - name: remote-peer-replied
     type: history_change
-    peer: "Pawly"
+    peer: "<your-remote-peer-name>"
     granularity: round
     poll_interval_seconds: 30
 
@@ -170,15 +170,15 @@ statechart:
   states:
     watching:
       transitions:
-        - when: "peers.Pawly.history.last_inbound_contains('project:')"
+        - when: "peers.<your-remote-peer-name>.history.last_inbound_contains('project:')"
           target: kickoff
 
     kickoff:
       on_enter:
         - action: send_a2a
           params:
-            peer: "Pawly"
-            text: "Got the project brief. Starting work on round {{ peers.Pawly.last_round }}."
+            peer: "<your-remote-peer-name>"
+            text: "Got the project brief. Starting work on round {{ peers.<your-remote-peer-name>.last_round }}."
       transitions:
         - { target: watching }
 ```

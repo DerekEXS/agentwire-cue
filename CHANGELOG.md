@@ -25,13 +25,60 @@ metadata persistence and CUE peer aliases.
   "history_change.*poll failed"` should now be silent (zero failures per
   15-second cycle).
 - `docker-compose.yml`: `agentwire-cue` now sets `CUE_CORE_URL=http://127.0.0.1:18800`
-  (host-network mode) and mounts `secrets/pawly-a2a-token.txt` as a Docker
-  secret at `/run/secrets/pawly-a2a-token.txt` (paired with
-  `PAWLY_A2A_TOKEN_FILE` env). HistoryClient reads the token via the
-  `token_file` alias field; the literal value never lives in compose / cue.yaml.
-- `examples/owner-alert/cue.yaml` and `skill/PLUGIN_AUTHORING.md`: refresh
-  Pawly `uuid` (`628b49d9...` → `0592602b...`) and `url` (`100.125.41.16` →
-  `100.91.108.62`) to match the current Tailscale peer allocation.
+  (host-network mode) and mounts a per-peer secrets file for any remote
+  CORE that uses an independent A2A token. HistoryClient reads the token
+  via the `token_file` alias field; the literal value never lives in compose / cue.yaml.
+- `examples/owner-alert/cue.yaml` and `skill/PLUGIN_AUTHORING.md`:
+  refreshed remote-peer `uuid` and `url` to match the current peer
+  allocation. (Concrete values omitted from this release-tree history;
+  tracked on the operator's local overlay only.)
+
+---
+
+## [v1.6.4] - 2026-07-05
+
+### Sanitization (post v1.6.3 token leak)
+User reported that "Pawly" is a personal agent name and should not appear
+in release-tree files alongside the real uuid / IP / host / token values.
+v1.6.4 strips every concrete personal value out of the tracked tree;
+real peer configuration moves to a `*.local.yaml` overlay.
+
+Files changed:
+- `examples/owner-alert/cue.yaml`: every peer `uuid`, `url`, `description`,
+  `http_egress` IP, and `workflow_pointer.workflow_file` replaced with
+  `<set-me-*>` placeholders. Alias slot names changed from `Pawly` /
+  `初梦` to `remote-peer-a` / `remote-peer-b`. `production.local.yaml`
+  pattern documented inline.
+- `examples/script-receiver/cue.yaml`: workflow metadata anonymized
+  (`00_初梦工作流_完整版.yaml` → `<set-me-workflow-filename>`); description
+  no longer references user-specific agent names.
+- `skill/PLUGIN_AUTHORING.md`, `skill/SKILL.md`: Pawly blocks replaced
+  with slot-name placeholders (`<your-remote-peer-name>`).
+- `README.md`, `README_CN.md`: Pawly/小爪/初梦 names + `pawly_responder`
+  example replaced with `<your-...>` placeholders to avoid stating
+  "the user has an agent called X".
+- `docker-compose.yml`: secret renamed (was named after the user's
+  personal peer; replaced with the generic `peer-a-a2a-token` slot
+  name — file path + secret name + env var).
+- `secrets/pawly-a2a-token.txt` file renamed
+  `secrets/peer-a-a2a-token.txt` (chmod 600).
+- `examples/owner-alert/README.md`, `README-DOCKER.md`: prose references
+  to `小爪/Pawly` generalized.
+
+Tests (`tests/test_*.py`) reference the demo `pawly-demo-uuid` /
+`http://pawly.example.invalid:18800` — these were already safe fixtures
+and were left untouched.
+
+### Production overlay convention
+Replace `<set-me-*>` placeholders via:
+
+```bash
+cp examples/owner-alert/cue.yaml examples/owner-alert/production.local.yaml
+$EDITOR examples/owner-alert/production.local.yaml  # fill in real values
+```
+
+`.gitignore` already covers `examples/**/*.local.yaml`. README-DOCKER.md
+documents the overlay pattern + compose mount for production cue.yaml.
 
 ---
 

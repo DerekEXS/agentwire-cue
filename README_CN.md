@@ -17,7 +17,7 @@ AgentWire-Cue 是一个**插件 host**,加载 YAML 定义的 statechart,对 A2A 
 
 在以下场景用 cue:
 - 用**声明式 YAML** 定义 agent 行为(无 Python 样板)
-- 触发**消息历史**驱动的工作流(如 "Pawly 刚说了 X")
+- 触发**消息历史**驱动的工作流(如 "<your-remote-peer-name> 刚说了 X")
 - 跑**cron 风格**的后台任务,参考会话上下文
 - 跨 QwenPaw / OpenClaw / Hermes / Claude 编排**多 peer** 会话
 
@@ -27,7 +27,7 @@ Cue **不是** agent 框架。它不生成回复,只执行**你**在 YAML 里描
 
 - **YAML 插件格式** —— triggers、statechart、actions、permissions (apiVersion `agentwire/v1.2`)
 - **三种 trigger** —— `cron`、`a2a_message_type`、`history_change` (v1.4.3)
-- **表达式引擎** —— `peers.<name>.history.*`、`history.*`、`event.*`、`context.*`、`meta.*`、`now.*` 命名空间;方法调用语法 `peers.Pawly.history.last_inbound_contains("keyword")` (v1.4.3)
+- **表达式引擎** —— `peers.<name>.history.*`、`history.*`、`event.*`、`context.*`、`meta.*`、`now.*` 命名空间;方法调用语法 `peers.<your-remote-peer-name>.history.last_inbound_contains("keyword")` (v1.4.3)
 - **`spec.peers` 别名** —— peer UUID/URL 表用于稳定历史查找和直接 A2A 路由 (v1.4.8)
 - **`spec.requires` 跨插件依赖** —— `plugins` / `peers` / `capabilities` 依赖检查 (v1.5.2)
 - **`send_a2a` 含 metadata** —— 可选 `metadata` 块带模板渲染 (v1.4.8)
@@ -149,18 +149,18 @@ statechart:
 v1.4.8+ 带 peer 别名的 history 插件:
 
 ```yaml
-id: pawly_responder
+id: remote-peer-responder
 version: 1.0.0
 
 peers:
-  Pawly:
-    uuid: "Pawly-demo-uuid"
-    url: "http://pawly:18800"
+  <your-remote-peer-name>:
+    uuid: "<your-remote-peer-name>-demo-uuid"
+    url: "http://<your-remote-peer-name>:18800"
 
 triggers:
-  - name: pawly_replied
+  - name: remote-peer-replied
     type: history_change
-    peer: "Pawly"
+    peer: "<your-remote-peer-name>"
     granularity: round
     poll_interval_seconds: 30
 
@@ -170,15 +170,15 @@ statechart:
   states:
     watching:
       transitions:
-        - when: "peers.Pawly.history.last_inbound_contains('project:')"
+        - when: "peers.<your-remote-peer-name>.history.last_inbound_contains('project:')"
           target: kickoff
 
     kickoff:
       on_enter:
         - action: send_a2a
           params:
-            peer: "Pawly"
-            text: "Got the project brief. Starting work on round {{ peers.Pawly.last_round }}."
+            peer: "<your-remote-peer-name>"
+            text: "Got the project brief. Starting work on round {{ peers.<your-remote-peer-name>.last_round }}."
       transitions:
         - { target: watching }
 ```
