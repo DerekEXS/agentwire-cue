@@ -12,6 +12,27 @@ metadata persistence and CUE peer aliases.
 
 ---
 
+## [v1.6.3] - 2026-07-05
+
+### Fixed
+- `__main__.py::host --a2a-url` now defaults to `os.environ.get("CUE_CORE_URL", ...)`
+  so compose / k8s can wire the URL without rebuilding the image. The hardcoded
+  URL was removed from Dockerfile `CMD` (replaced with comment). Symptom:
+  WSL2 + `network_mode: host` + k8s-style `agentwire-core` service DNS
+  resolves to a non-routable fake Service IP (`198.18.0.20`), causing every
+  `history_change` poll to log `Remote end closed connection without response`.
+  Verifying: `docker compose up -d agentwire-cue && docker logs ... | grep
+  "history_change.*poll failed"` should now be silent (zero failures per
+  15-second cycle).
+- `docker-compose.yml`: `agentwire-cue` now sets `CUE_CORE_URL=http://127.0.0.1:18800`
+  (host-network mode) and adds `PAWLY_A2A_TOKEN` env so HistoryClient can
+  resolve the Pawly peer alias against the remote Tailscale CORE.
+- `examples/owner-alert/cue.yaml` and `skill/PLUGIN_AUTHORING.md`: refresh
+  Pawly `uuid` (`628b49d9...` → `0592602b...`) and `url` (`100.125.41.16` →
+  `100.91.108.62`) to match the current Tailscale peer allocation.
+
+---
+
 ## [v1.6.2] - 2026-06-15
 
 ### Fixed

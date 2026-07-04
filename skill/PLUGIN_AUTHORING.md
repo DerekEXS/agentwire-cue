@@ -86,8 +86,8 @@ Stable history lookups + direct A2A routing. Each entry is keyed by alias name:
 spec:
   peers:
     Pawly:
-      uuid: "628b49d96dcde97a"
-      url: "http://100.125.41.16:18800"
+      uuid: "0592602bb16781a4"
+      url: "http://100.91.108.62:18800"
       description: "小爪 - QwenPaw @ 阿里云"
     main:
       uuid: "main-demo-uuid"
@@ -119,8 +119,8 @@ falls back to the local CORE token unchanged (backward compatible).
 spec:
   peers:
     Pawly:
-      uuid: "628b49d96dcde97a"
-      url: "http://100.125.41.16:18800"
+      uuid: "0592602bb16781a4"
+      url: "http://100.91.108.62:18800"
       # v1.6.1: per-peer auth for remote CORE
       token_env: "PAWLY_A2A_TOKEN"            # recommended
       # token_file: "/run/secrets/pawly-token"  # Docker secrets

@@ -37,8 +37,9 @@ EXPOSE 18801 19000
 
 VOLUME ["/plugins", "/data"]
 
-# Default plumbing for compose. CUE_CORE_URL points at the companion
-# CORE service; admin token resolved from the mounted secret.
+# Default plumbing for compose. CUE_CORE_URL is read by `agentwire_cue host`
+# at startup (v1.6.3+); bridge-mode operators can override per-service, and
+# host-network mode (WSL2 + tailscale) explicitly pins 127.0.0.1 in compose.
 ENV PYTHONPATH=/app \
     CUE_CORE_URL=http://agentwire-core:18800 \
     CUE_DOCTOR_A2A_URL=http://agentwire-core:18800
@@ -50,9 +51,9 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
         --admin-port 19000 \
         || exit 1
 
+# v1.6.3: --a2a-url omitted - agentwire_cue host reads $CUE_CORE_URL env.
 CMD ["python3", "-m", "agentwire_cue", "host", \
      "--plugin-dir", "/plugins", \
-     "--a2a-url", "http://agentwire-core:18800", \
      "--a2a-token-file", "/run/secrets/a2a-token.txt", \
      "--admin-token-file", "/run/secrets/cue-admin-token.txt", \
      "--admin-host", "0.0.0.0", \

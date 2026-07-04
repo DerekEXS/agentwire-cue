@@ -34,7 +34,7 @@ services:
   agentwire-cue:
     build:
       context: .
-    image: agentwire-cue:v1.6.2
+    image: agentwire-cue:v1.6.3
     container_name: agentwire-cue
     # v1.6.2: 跟随 CORE 用 host 网络模式（同样 WSL2 Tailscale 兼容原因）
     # 18801/19000 通过下方 ports 映射限制仅 host loopback 可达
@@ -51,8 +51,14 @@ services:
       - source: cue-admin-token
         target: cue-admin-token.txt
     environment:
-      - CUE_CORE_URL=http://agentwire-core:18800
+      # v1.6.3 (silk-thread hotfix): WSL+k8s+network_mode:host 下,
+      #   `agentwire-core` service 名解析成 198.18.0.0/15 假 Service IP
+      #   (TCP 握手后被 kernel RST). 两 service 共用 host 网络栈 → 直走 loopback.
+      - CUE_CORE_URL=http://127.0.0.1:18800
       - CUE_ADMIN_TOKEN_FILE=/run/secrets/cue-admin-token.txt
+      # v1.6.3: Pawly CORE (Tailscale 100.91.108.62) 有独立 A2A token,
+      #   CUE 调 messages/list 时用此 token (HistoryClient 查 alias.token_env).
+      - PAWLY_A2A_TOKEN=ee8d741509f13828872ca846e1da6dd9738b90ce65669130
     healthcheck:
       test: ["CMD", "python3", "-m", "agentwire_cue", "doctor", "--no-network", "--a2a-listener-port", "18801", "--admin-port", "19000"]
       interval: 30s

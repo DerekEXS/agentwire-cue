@@ -267,7 +267,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_host = sub.add_parser("host", help="start the cue host process")
     p_host.add_argument("--plugin-dir", required=True, type=Path, help="directory of plugin yaml files")
-    p_host.add_argument("--a2a-url", default="http://127.0.0.1:18800", help="AGENTWIRE A2A endpoint")
+    # v1.6.3: read CUE_CORE_URL env so compose / k8s manifests can wire the URL
+    # without baking it into the image. Falls back to loopback for solo runs.
+    p_host.add_argument("--a2a-url", default=os.environ.get("CUE_CORE_URL", "http://127.0.0.1:18800"), help="AGENTWIRE A2A endpoint (env: CUE_CORE_URL)")
     p_host.add_argument("--a2a-token", default=None, help="Bearer token for AGENTWIRE (argv, visible in ps)")
     p_host.add_argument("--a2a-token-env", default=None,
                         help="read Bearer token from env var (avoids argv leak; takes precedence over --a2a-token)")
