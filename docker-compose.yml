@@ -34,7 +34,7 @@ services:
   agentwire-cue:
     build:
       context: .
-    image: agentwire-cue:v1.6.3
+    image: agentwire-cue:v1.6.4
     container_name: agentwire-cue
     # v1.6.2: 跟随 CORE 用 host 网络模式（同样 WSL2 Tailscale 兼容原因）
     # 18801/19000 通过下方 ports 映射限制仅 host loopback 可达
@@ -50,18 +50,18 @@ services:
         target: a2a-token.txt
       - source: cue-admin-token
         target: cue-admin-token.txt
-      - source: pawly-a2a-token
-        target: pawly-a2a-token.txt
+      - source: peer-a-a2a-token
+        target: peer-a-a2a-token.txt
     environment:
       # v1.6.3 (silk-thread hotfix): WSL+k8s+network_mode:host 下,
       #   `agentwire-core` service 名解析成 198.18.0.0/15 假 Service IP
       #   (TCP 握手后被 kernel RST). 两 service 共用 host 网络栈 → 直走 loopback.
       - CUE_CORE_URL=http://127.0.0.1:18800
       - CUE_ADMIN_TOKEN_FILE=/run/secrets/cue-admin-token.txt
-      # v1.6.3 hotfix: Pawly CORE (Tailscale 100.91.108.62) 用独立 A2A token.
+      # v1.6.3 hotfix: a remote peer CORE (Tailscale IP example, real value in *.local overlay) uses its own A2A token.
       #   历史上曾以字面 env 落地 → 已改为 Docker secrets 文件模式
       #   (与 a2a-token.txt 同模式); cue.yaml 同步用 alias.token_file 引用.
-      - PAWLY_A2A_TOKEN_FILE=/run/secrets/pawly-a2a-token.txt
+      - PEER_A_A2A_TOKEN_FILE=/run/secrets/peer-a-a2a-token.txt
     healthcheck:
       test: ["CMD", "python3", "-m", "agentwire_cue", "doctor", "--no-network", "--a2a-listener-port", "18801", "--admin-port", "19000"]
       interval: 30s
@@ -83,5 +83,5 @@ secrets:
     file: ./secrets/a2a-token.txt
   cue-admin-token:
     file: ./secrets/cue-admin-token.txt
-  pawly-a2a-token:
-    file: ./secrets/pawly-a2a-token.txt
+  peer-a-a2a-token:
+    file: ./secrets/peer-a-a2a-token.txt

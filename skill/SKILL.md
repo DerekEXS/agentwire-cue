@@ -105,7 +105,7 @@ spec:
     Pawly:
       uuid: "pawly-demo-uuid"
       url: "http://agentwire-core:18800"
-      description: "小爪 - QwenPaw"
+      description: "<set-me-remote-peer-a description>"
     main:
       uuid: "main-demo-uuid"
       url: "http://127.0.0.1:18800"

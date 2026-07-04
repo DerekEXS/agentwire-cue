@@ -1,66 +1,65 @@
 apiVersion: agentwire/v1.2
 kind: plugin
 
-# v1.4.4 → v1.4.8 example: owner-alert
-# 用途: Pawly/初梦 任一 peer 收到含 urgent: 关键词 → send_a2a 给主 agent (初梦) 路由
-# 演示: v1.4.3 history_change trigger + peers.X.history.last_inbound_contains() 表达式
+# ============================================================================
+# v1.6.4 example: owner-alert
+# ============================================================================
+# 用途: 任一 peer 收到含 urgent: 关键词 → send_a2a 给主 agent 路由
+# 演示: history_change trigger + peers.X.history.last_inbound_contains()
 #
-# v1.4.4 fix: 初梦 review (P0 bug):
-#   - 修复前: notify 状态无回环, history_change 每 15s poll → guard 仍 true
-#     → 每 15s 重复发一次告警 (spamming!)
-#   - 修复后: 状态自循环 (watching → watching), guard 加
-#     "event.new_round > context.last_notified_round" 去重
-#     + set_context 记录已告警 round
-#     效果: 仅每个新 round 告警一次
+# 本文件是 *示例模板*。所有真实 peer uuid / url / host / token 都必须走
+# production.local.yaml (gitignored), 不要直接编辑本文件的占位符。
+# 容器挂载时把 production.local.yaml 覆盖到 plugin 目录即可。
 #
-# v1.4.8: peer alias table. cue.yaml 写 peer: "Pawly"，CUE 通过 peers.Pawly.uuid
-# 解析为 CORE 的真实 peer uuid，history 查询才能命中。workflow_pointer 在
-# send_a2a metadata 中透传，接收方可通过 message.metadata 读到工作流上下文。
+# 历史教训 (v1.6.3 token leak + v1.6.4 personal-info 清理):
+#   * docker-compose.yml 不许出现字面 token
+#   * examples/*.yaml 不许出现真实 peer uuid / IP / 主机名
+#   * 任何上传到 git/release 的文件必须保证 owner 不能据此推断
+#     "这位用户具体有个 agent 叫 X 跑在 Y 的某个 IP"
 #
-# 验收: cue 单测 + 本地 CORE 端到端 (v1.4.8 scope)
-#   端到端 TG 通知由初梦 OpenClaw 配 A2A→TG channel 路由 (v1.4.8 scope 外)
-# 用法: cue host --plugin-dir examples/ --admin-token=xxx
+# 替换字段: 把 <set-me-*> 换成你自己的值就能本地跑通
+# ============================================================================
 
 metadata:
   name: owner-alert
-  version: 1.5.0
-  description: "v1.5.0 killer example. 监听 Pawly/初梦 history; 含 urgent: 关键词时路由给主 agent. v1.5.0: workflow_pointer E2E + peers alias 解析 + metadata 透传."
+  version: 1.6.4
+  description: "v1.6.4 sanitized example. history_change trigger + peers alias + token_file. Real peer identifiers belong in production.local.yaml, not this file."
 
 spec:
-  # v1.4.8: explicit peer alias table. uuid 是 CORE history 的真实 peer uuid;
-  # url 是 A2A send 路由目标。当未配置时 CUE 保留 legacy 行为（把 name 当 uuid 发 CORE）。
+  # ------------------------------------------------------------------
+  # Peer alias table
+  # ------------------------------------------------------------------
+  # Slot names below are *placeholders*. Replace the keys entirely or
+  # override values via production.local.yaml.
   peers:
-    Pawly:
-      uuid: "0592602bb16781a4"
-      url: "http://100.91.108.62:18800"
-      description: "小爪 - QwenPaw @ 阿里云"
-      # v1.6.3 hotfix: switched from token_env to token_file. The token lives
-      # in docker-composed secrets/pawly-a2a-token.txt (chmod 600, gitignored)
-      # and is mounted at /run/secrets/pawly-a2a-token.txt inside the CUE
-      # container. Same pattern as a2a-token.txt — never inline the literal
-      # in this YAML or compose, since both end up in git history.
-      token_file: "/run/secrets/pawly-a2a-token.txt"
-    初梦:
-      uuid: "209d9e1763883659"
-      url: "http://127.0.0.1:18800"
-      description: "初梦 - OpenClaw @ 本地"
+    remote_peer_a:
+      uuid: "<set-me-remote_peer_a-uuid>"
+      url: "http://<set-me-remote_peer_a-host>:18800"
+      description: "<set-me-remote_peer_a description>"
+      # Per-peer A2A token. Compose mounts secrets/<peer>-a2a-token.txt
+      # into the container; cue.yaml references the in-container path.
+      token_file: "/run/secrets/peer-a-a2a-token.txt"  # peer-a is one example slot; rename to match your actual peer aliases
+    remote_peer_b:
+      uuid: "<set-me-remote_peer_b-uuid>"
+      url: "http://<set-me-remote_peer_b-host>:18800"
+      description: "<set-me-remote_peer_b description>"
     main:
-      uuid: "209d9e1763883659"
+      uuid: "<set-me-main-uuid>"
       url: "http://127.0.0.1:18800"
       description: "主 agent 路由入口"
 
   triggers:
-    - id: on-pawly-urgent
+    - id: on-remote_peer_a-urgent
       type: history_change
       config:
-        peer: "Pawly"
+        peer: "remote_peer_a"
         granularity: round
         poll_interval_seconds: 15
 
-    - id: on-chumeng-urgent
+    - id: on-remote_peer_b-urgent
       type: history_change
       config:
-        peer: "初梦"
+        peer: "remote_peer_b"
         granularity: round
         poll_interval_seconds: 15
 
@@ -74,7 +73,8 @@ spec:
         "on":
           history_change:
             target: watching
-            guard: "(peers.Pawly.history.last_inbound_contains('urgent:') || peers.初梦.history.last_inbound_contains('urgent:')) && event.new_round > context.last_notified_round"
+            # Replace peer alias keys to match your spec.peers entries.
+            guard: "(peers.remote_peer_a.history.last_inbound_contains('urgent:') || peers.remote_peer_b.history.last_inbound_contains('urgent:')) && event.new_round > context.last_notified_round"
             actions:
               - type: set_context
                 with:
@@ -89,12 +89,14 @@ spec:
                   message:
                     type: A2A_MESSAGE
                     text: "🚨 {{event.peer}} 紧急: round {{event.new_round}}"
-                  # v1.4.8: workflow_pointer 透传到对方 history.metadata
+                  # workflow_pointer 通过 metadata 透传到对方 history
+                  # Replace workflow_file / current_step etc. with your
+                  # actual workflow values via production.local.yaml overlay.
                   metadata:
                     workflow_pointer:
-                      workflow_file: "00_初梦工作流_完整版.yaml"
-                      workflow_version: "v3.0"
-                      current_step: "step_5_review_urgent"
+                      workflow_file: "<set-me-workflow-filename>"
+                      workflow_version: "<set-me-workflow-version>"
+                      current_step: "<set-me-current-step>"
                       next_action: "review_and_approve"
                       next_agent: "main"
                       human_in_the_loop: true
@@ -106,7 +108,9 @@ spec:
 
   permissions:
     network:
-      http_egress: ["localhost", "127.0.0.1", "agentwire-core", "100.91.108.62"]
+      # Replace with your actual egress targets. NEVER put real public /
+      # Tailscale / WAN IPs here — that's owner-identifying information.
+      http_egress: ["localhost", "127.0.0.1", "<set-me-egress-hosts>"]
       raw_socket: false
     filesystem: []
     subprocess: { allow: [] }
@@ -115,3 +119,17 @@ spec:
       - id: main
         allow_messages: ["*"]
     timers: { max_concurrent: 1, min_interval_ms: 1000 }
+
+# ============================================================================
+# production.local.yaml convention
+# ============================================================================
+# Drop a file named `production.local.yaml` next to this cue.yaml. It must
+# NOT be committed (gitignored). The CUE host loads any YAML under
+# --plugin-dir, so on operator hosts:
+#
+#   cp examples/owner-alert/cue.yaml examples/owner-alert/production.local.yaml
+#   $EDITOR examples/owner-alert/production.local.yaml  # fill in real values
+#
+# If both exist, load order is alphabetical; rename if you need ordering.
+# README-DOCKER.md has a longer write-up of the overlay pattern.
+# ============================================================================

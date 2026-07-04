@@ -61,15 +61,25 @@ cp examples/owner-alert/cue.yaml examples/owner-alert/cue.local.yaml
 ```yaml
 spec:
   peers:
-    Pawly:
-      uuid: "<Pawly peer uuid>"
-      url: "http://<pawly-host>:18800"
-      description: "小爪 - QwenPaw @ 阿里云"
+    # 真实 peer uuid / url 必须放在 gitignored 的 *.local.yaml 文件里
+    # 这里仅示例 placeholder 命名，替换为你自己的值
+    remote_peer_a:
+      uuid: "<set-me-remote_peer_a-uuid>"
+      url: "http://<set-me-remote_peer_a-host>:18800"
+      description: "<set-me-remote_peer_a description>"
+      token_file: "/run/secrets/peer-a-a2a-token.txt"
     main:
-      uuid: "<初梦本机 peer uuid>"
+      uuid: "<set-me-main-uuid>"
       url: "http://127.0.0.1:18800"
-      description: "初梦 - OpenClaw @ 本地"
+      description: "<set-me-main description>"
 ```
+
+注：peer slot 名（这里是 `remote_peer_a`）只是 YAML alias 占位符，不应直接
+绑定到任何用户私人 agent 名（占位符命名在每用户本地替换）。
+参考 [[agent-roster-platforms]] 区别用户私人 agent 与 QwenPaw 平台。
+
+注意: peer alias 名不能用 `-`（会被 `peers.<name>.history.*` 表达式解析为减号）。
+用 snake_case（如 `remote_peer_a`）或 camelCase。
 
 获取 `main` peer uuid 的方式：
 

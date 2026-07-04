@@ -5,7 +5,7 @@ metadata:
   name: script-receiver
   version: 1.0.0
   description: |
-    v1.6.1: 接收小爪 A2A 视频脚本 → 保存文件 → 通知初梦。
+    v1.6.4: 接收 peer A 的 A2A 脚本 → 保存文件 → 通知主 agent (peer `main`)。
     监听包含 "project:" 和 "scenes:" 关键词的入站消息，
     保存为 YAML 脚本文件，然后通过 send_a2a 通知初梦主 Agent。
 
@@ -44,12 +44,12 @@ spec:
                   收到脚本 from {{event.peer}}
                   已保存到: /tmp/agentwire-scripts/{{event.peer}}/
                   匹配关键词: {{event.matched_keywords}}/{{event.contains_count}}
-                  请按照 00_初梦工作流_完整版.yaml 执行后续流程
+                  请按后续 workflow 处理
               metadata:
                 workflow_pointer:
-                  workflow_file: "00_初梦工作流_完整版.yaml"
-                  workflow_version: "v3.0"
-                  current_step: "step_1_receive_script"
+                  workflow_file: "<set-me-workflow-filename>"
+                  workflow_version: "<set-me-workflow-version>"
+                  current_step: "<set-me-current-step>"
                   next_action: "review_script"
                   next_agent: "main"
 

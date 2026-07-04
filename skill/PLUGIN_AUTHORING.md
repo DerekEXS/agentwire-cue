@@ -38,9 +38,9 @@ triggers:
     type: a2a_message_type
     match: "*"  # or exact message type
 
-  - name: pawly_replied        # v1.4.3
+  - name: <your-remote-peer-replied>     # v1.4.3
     type: history_change
-    peer: "Pawly"
+    peer: "<your-remote_peer_alias>"     # matches a key in spec.peers
     granularity: round  # round | message | manual
     poll_interval_seconds: 30
 ```
@@ -85,10 +85,10 @@ Stable history lookups + direct A2A routing. Each entry is keyed by alias name:
 ```yaml
 spec:
   peers:
-    Pawly:
-      uuid: "0592602bb16781a4"
-      url: "http://100.91.108.62:18800"
-      description: "小爪 - QwenPaw @ 阿里云"
+    remote_peer_a:
+      uuid: "<set-me-remote_peer_a-uuid>"
+      url: "http://<set-me-remote_peer_a-host>:18800"
+      description: "<set-me-remote_peer_a description>"
     main:
       uuid: "main-demo-uuid"
       url: "http://127.0.0.1:18800"
@@ -118,13 +118,16 @@ falls back to the local CORE token unchanged (backward compatible).
 ```yaml
 spec:
   peers:
-    Pawly:
-      uuid: "0592602bb16781a4"
-      url: "http://100.91.108.62:18800"
+    # NOTE: 'Pawly' below is a SLOT NAME example; replace with your actual
+    # peer alias. NEVER commit real uuid / url / host here — use a
+    # gitignored *.local.yaml overlay (see README-DOCKER.md).
+    <your-remote-peer-name>:
+      uuid: "<set-me-your-remote-peer-uuid>"
+      url: "http://<set-me-your-remote-peer-host>:18800"
       # v1.6.1: per-peer auth for remote CORE
-      token_env: "PAWLY_A2A_TOKEN"            # recommended
-      # token_file: "/run/secrets/pawly-token"  # Docker secrets
-      # token: "ee8d74..."                    # literal (NOT recommended)
+      token_env: "<YOUR_PEER>_A2A_TOKEN"     # recommended
+      # token_file: "/run/secrets/<your-peer>-a2a-token.txt"  # Docker secrets
+      # token: "<REDACTED>"                  # literal (NOT recommended)
 ```
 
 **When to use**:
@@ -238,7 +241,7 @@ In action `params`, any string value supports `{{ ... }}` substitution:
 ```yaml
 - action: log
   params:
-    message: "Round {{ peers.Pawly.last_round }} reached for Pawly"
+    message: "Round {{ peers.<your-remote_peer_alias>.last_round }} reached for <your-remote_peer_alias>"
 ```
 
 `{{ expr }}` is evaluated against the same env as guards. Returns `""` if value is None.

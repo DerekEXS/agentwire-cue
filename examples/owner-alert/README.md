@@ -1,12 +1,12 @@
 # owner-alert — AgentWire-Cue Killer Example (v1.4.4)
 
-> ⚠️ **v1.4.4 scope**: This example is **validated by cue unit tests only** (9 tests in `tests/test_owner_alert.py`, all green). **End-to-end Telegram notification is OUT OF v1.4.4 scope** — that is OpenClaw main agent (初梦/ChuMeng)'s responsibility: cue emits `send_a2a` to peer `main`; the main agent's A2A→TG channel routing is owned by 初梦 and verified during her full-stack upgrade, not here.
+> ⚠️ **v1.4.4 scope**: This example is **validated by cue unit tests only** (9 tests in `tests/test_owner_alert.py`, all green). **End-to-end Telegram notification is OUT OF v1.4.4 scope** — that is OpenClaw main agent (<your-main-agent-name>/<your-main-agent-name>)'s responsibility: cue emits `send_a2a` to peer `main`; the main agent's A2A→TG channel routing is owned by <your-main-agent-name> and verified during her full-stack upgrade, not here.
 
 ## What is it?
 
 A complete, runnable cue plugin demonstrating **v1.4.3's new `history_change` trigger** and **`peers.X.history.last_inbound_contains()` expression** in a realistic scenario.
 
-When **either** Pawly **or** 初梦 receives a message containing the keyword `urgent:`, this plugin fires `send_a2a` to the main agent (初梦). The main agent is then responsible for forwarding the alert to the human user via its telegram channel (out of v1.4.4 scope — owned by 初梦/OpenClaw).
+When **either** <your-remote-peer-name> **or** <your-main-agent-name> receives a message containing the keyword `urgent:`, this plugin fires `send_a2a` to the main agent (<your-main-agent-name>). The main agent is then responsible for forwarding the alert to the human user via its telegram channel (out of v1.4.4 scope — owned by <your-main-agent-name>/OpenClaw).
 
 ## Why "killer"?
 
@@ -30,11 +30,11 @@ python3 -m agentwire_cue host \
   --a2a-token-file /tmp/agentwire.token \
   --admin-token "admin-secret"
 
-# 3. (Manual test) Send an urgent message to CORE, simulating Pawly:
+# 3. (Manual test) Send an urgent message to CORE, simulating <your-remote-peer-name>:
 curl -X POST http://127.0.0.1:18800/a2a/rest/message/send \
   -H "Authorization: Bearer $(cat /tmp/agentwire.token)" \
   -H "Content-Type: application/json" \
-  -d '{"contextId":"pawly-test-1","message":{"parts":[{"type":"text","text":"urgent: 视频脚本出错请检查"}]}}'
+  -d '{"contextId":"peer-a-test-1","message":{"parts":[{"type":"text","text":"urgent: 视频脚本出错请检查"}]}}'
 
 # 4. Within 15s, cue's history_change trigger should fire,
 #    and (via main agent) the user should see a notification.
@@ -52,7 +52,7 @@ This plugin is unit-tested in `tests/test_owner_alert.py`:
 | `test_history_change_event_watching_to_notify` | mock `history_change` 事件 + 含 urgent: → 转移到 `notify` |
 | `test_history_change_event_no_urgent` | mock `history_change` 事件 + 不含 urgent: → 留在 `watching` |
 | `test_send_a2a_dispatched_to_main` | notify 状态触发 send_a2a → peer=main, text 含 "🚨" + round number |
-| `test_multi_peer_parallel` | Pawly + 初梦 双 trigger 不冲突 |
+| `test_multi_peer_parallel` | <your-remote-peer-name> + <your-main-agent-name> 双 trigger 不冲突 |
 
 ## What's OUT of scope (v1.4.4)
 
@@ -60,7 +60,7 @@ This plugin is unit-tested in `tests/test_owner_alert.py`:
 - ❌ OpenClaw main agent's A2A→TG channel routing
 - ❌ Production-grade retry / fallback for `send_a2a`
 
-These are owned by the main agent (初梦) and the user — not by the cue plugin author. The v1.4.4 acceptance scope is "cue unit tests only" (per master's 2026-06-06 拍板); end-to-end TG verification is deferred to the master full-stack upgrade.
+These are owned by the main agent (<your-main-agent-name>) and the user — not by the cue plugin author. The v1.4.4 acceptance scope is "cue unit tests only" (per master's 2026-06-06 拍板); end-to-end TG verification is deferred to the master full-stack upgrade.
 
 ## Plugin schema (v1.4.4 update)
 
@@ -74,6 +74,6 @@ This plugin requires `plugin.schema.json` to recognize the `history_change` trig
 
 ## Author
 
-- Spec: 初梦 (Chu Meng) — see `MEMORY-v1.4.4-proposal.md`
+- Spec: <your-main-agent-name> (Chu Meng) — see `MEMORY-v1.4.4-proposal.md`
 - Implementation: 丝线 (SilkThread)
-- Review: 初梦 (asynchronous)
+- Review: <your-main-agent-name> (asynchronous)
