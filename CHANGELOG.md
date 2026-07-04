@@ -25,8 +25,10 @@ metadata persistence and CUE peer aliases.
   "history_change.*poll failed"` should now be silent (zero failures per
   15-second cycle).
 - `docker-compose.yml`: `agentwire-cue` now sets `CUE_CORE_URL=http://127.0.0.1:18800`
-  (host-network mode) and adds `PAWLY_A2A_TOKEN` env so HistoryClient can
-  resolve the Pawly peer alias against the remote Tailscale CORE.
+  (host-network mode) and mounts `secrets/pawly-a2a-token.txt` as a Docker
+  secret at `/run/secrets/pawly-a2a-token.txt` (paired with
+  `PAWLY_A2A_TOKEN_FILE` env). HistoryClient reads the token via the
+  `token_file` alias field; the literal value never lives in compose / cue.yaml.
 - `examples/owner-alert/cue.yaml` and `skill/PLUGIN_AUTHORING.md`: refresh
   Pawly `uuid` (`628b49d9...` → `0592602b...`) and `url` (`100.125.41.16` →
   `100.91.108.62`) to match the current Tailscale peer allocation.

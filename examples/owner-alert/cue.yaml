@@ -34,9 +34,12 @@ spec:
       uuid: "0592602bb16781a4"
       url: "http://100.91.108.62:18800"
       description: "小爪 - QwenPaw @ 阿里云"
-      # v1.6.1: per-peer token for Pawly CORE auth (different from local CORE token).
-      # Set PAWLY_A2A_TOKEN env var or replace with token_file / token literal.
-      token_env: "PAWLY_A2A_TOKEN"
+      # v1.6.3 hotfix: switched from token_env to token_file. The token lives
+      # in docker-composed secrets/pawly-a2a-token.txt (chmod 600, gitignored)
+      # and is mounted at /run/secrets/pawly-a2a-token.txt inside the CUE
+      # container. Same pattern as a2a-token.txt — never inline the literal
+      # in this YAML or compose, since both end up in git history.
+      token_file: "/run/secrets/pawly-a2a-token.txt"
     初梦:
       uuid: "209d9e1763883659"
       url: "http://127.0.0.1:18800"
