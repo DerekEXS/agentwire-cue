@@ -175,3 +175,33 @@ class TestRetryPolicy:
         assert result == SendResult.PERMISSION_DENIED
         # No retry for PERMISSION_DENIED
         assert calls[0] == 1
+
+
+# ---------- v1.6.4 regression: CUE_VERSION drift guard ----------
+#
+# v1.6.4 shipped with `__version__ = "1.6.4"` in __init__.py but the
+# `CUE_VERSION` constant in a2a_client.py was still hardcoded to "1.6.2".
+# That made the agent card and admin /status endpoints report a stale
+# version (real-world bug: operator's "is this v1.6.4 deployed?" check
+# failed because /.well-known/agent.json said 1.6.2 while the package
+# was actually 1.6.4).
+#
+# The fix: CUE_VERSION must derive from the package __version__ so it
+# cannot drift. This test guards the invariant.
+
+def test_cue_version_matches_package_version():
+    """v1.6.4: a2a_client.CUE_VERSION must equal agentwire_cue.__version__.
+
+    Both are surfaced to operators via /.well-known/agent.json (version
+    field) and /admin/status (cue_version field — admin_api.py imports
+    CUE_VERSION from a2a_client). If they drift, the advertised version
+    is wrong.
+    """
+    import agentwire_cue
+    from agentwire_cue.core.a2a_client import CUE_VERSION
+
+    assert CUE_VERSION == agentwire_cue.__version__, (
+        f"CUE_VERSION ({CUE_VERSION!r}) drifted from package __version__ "
+        f"({agentwire_cue.__version__!r}). Fix by importing __version__ "
+        f"in a2a_client.py instead of hardcoding."
+    )

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from aiohttp.test_utils import make_mocked_request
 
+from agentwire_cue import __version__
 from agentwire_cue.core.a2a_client import A2AClient, A2AListener
 
 
@@ -52,4 +53,6 @@ async def test_agent_card_reports_current_version():
     response = await listener._handle_agent_card(request)
 
     assert response.status == 200
-    assert '"version": "1.6.2"' in response.text
+    # v1.6.4: assert against package __version__ instead of hardcoded
+    # literal — keeps this test valid across version bumps.
+    assert f'"version": "{__version__}"' in response.text

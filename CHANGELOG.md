@@ -80,6 +80,18 @@ $EDITOR examples/owner-alert/production.local.yaml  # fill in real values
 `.gitignore` already covers `examples/**/*.local.yaml`. README-DOCKER.md
 documents the overlay pattern + compose mount for production cue.yaml.
 
+### Maintenance (post-release)
+
+- `core/a2a_client.py`: `CUE_VERSION` constant now derives from
+  `agentwire_cue.__version__` instead of a hardcoded literal. Symptom
+  caught by `test_cue_version_matches_package_version` regression
+  guard: after v1.6.3→v1.6.4, `agentwire_cue.__version__` was bumped
+  to `"1.6.4"` but `CUE_VERSION` was still `"1.6.2"`, so
+  `/.well-known/agent.json` and `/admin/status` reported a stale
+  version. Both surfaces now match the package version automatically.
+- `tests/test_v150_regressions.py::test_agent_card_reports_current_version`
+  also made version-dynamic (was hardcoded `"1.6.2"`).
+
 ---
 
 ## [v1.6.2] - 2026-06-15

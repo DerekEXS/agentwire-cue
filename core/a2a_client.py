@@ -27,6 +27,7 @@ from typing import Any, Awaitable, Callable
 
 import aiohttp
 
+from .. import __version__
 from .sandbox import (
     SURFACE_PEER,
     SandboxError,
@@ -34,7 +35,9 @@ from .sandbox import (
 )
 
 log = logging.getLogger("agentwire_cue.a2a_client")
-CUE_VERSION = "1.6.2"
+# v1.6.4: derive from package __version__ instead of hardcoding — keeps
+# /.well-known/agent.json + /admin/status in sync with the release tag.
+CUE_VERSION = __version__
 
 
 def now_ms() -> int:
