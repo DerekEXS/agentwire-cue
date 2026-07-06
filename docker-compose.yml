@@ -34,7 +34,7 @@ services:
   agentwire-cue:
     build:
       context: .
-    image: agentwire-cue:v1.6.4
+    image: agentwire-cue:v1.6.5
     container_name: agentwire-cue
     # v1.6.2: 跟随 CORE 用 host 网络模式（同样 WSL2 Tailscale 兼容原因）
     # 18801/19000 通过下方 ports 映射限制仅 host loopback 可达

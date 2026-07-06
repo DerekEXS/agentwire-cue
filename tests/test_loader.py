@@ -385,3 +385,104 @@ class TestLoadAll:
         assert plugins == []
         # 0 plugins successfully loaded — host should exit 1
         assert any("0 plugins successfully loaded" in r.message for r in caplog.records)
+
+
+# ===========================================================================
+# v1.6.5: production.local.yaml overlay support
+# ===========================================================================
+
+class TestDeepMerge:
+    """v1.6.5: helper used by _apply_local_overlay."""
+
+    def test_deep_merge_overrides_scalar_leaf(self):
+        from agentwire_cue.core.loader import _deep_merge
+        base = {"spec": {"peers": {"main": {"uuid": "old", "url": "http://old"}}}}
+        overlay = {"spec": {"peers": {"main": {"uuid": "new"}}}}
+        result = _deep_merge(base, overlay)
+        assert result["spec"]["peers"]["main"]["uuid"] == "new"
+        assert result["spec"]["peers"]["main"]["url"] == "http://old"  # preserved
+
+    def test_deep_merge_replaces_list_atomically(self):
+        """Lists replace entirely — no item-by-item merge (could cause
+        surprising behavior with secret paths etc.)."""
+        from agentwire_cue.core.loader import _deep_merge
+        base = {"permissions": {"peers": ["main", "other"]}}
+        overlay = {"permissions": {"peers": ["main", "pawly"]}}
+        result = _deep_merge(base, overlay)
+        assert result["permissions"]["peers"] == ["main", "pawly"]
+
+    def test_deep_merge_adds_new_top_level_keys(self):
+        from agentwire_cue.core.loader import _deep_merge
+        base = {"a": 1}
+        overlay = {"b": 2}
+        result = _deep_merge(base, overlay)
+        assert result == {"a": 1, "b": 2}
+
+    def test_deep_merge_does_not_mutate_base(self):
+        from agentwire_cue.core.loader import _deep_merge
+        base = {"a": {"b": 1}}
+        overlay = {"a": {"b": 2}}
+        result = _deep_merge(base, overlay)
+        assert result["a"]["b"] == 2
+        assert base["a"]["b"] == 1  # original untouched
+
+
+class TestApplyLocalOverlay:
+    """v1.6.5: _apply_local_overlay applies sibling production.local.yaml."""
+
+    def test_no_overlay_file_returns_base_unchanged(self, tmp_path: Path):
+        from agentwire_cue.core.loader import _apply_local_overlay
+        base = {"spec": {"peers": {"main": {"uuid": "abc"}}}}
+        # No overlay file present
+        result = _apply_local_overlay(tmp_path / "cue.yaml", base)
+        assert result == base
+
+    def test_overlay_present_merges_real_peer_values(self, tmp_path: Path):
+        from agentwire_cue.core.loader import _apply_local_overlay
+        cue = tmp_path / "cue.yaml"
+        cue.write_text("placeholder", encoding="utf-8")
+        overlay = tmp_path / "production.local.yaml"
+        overlay.write_text(textwrap.dedent("""\
+            spec:
+              peers:
+                remote_peer_a:
+                  uuid: "75755f137e7451c0"
+                  url: "http://100.91.108.62:18800"
+        """), encoding="utf-8")
+        base = {"spec": {"peers": {"remote_peer_a": {"uuid": "<set-me>", "url": "http://<set-me>:18800"}}}}
+        result = _apply_local_overlay(cue, base)
+        assert result["spec"]["peers"]["remote_peer_a"]["uuid"] == "75755f137e7451c0"
+        assert result["spec"]["peers"]["remote_peer_a"]["url"] == "http://100.91.108.62:18800"
+
+    def test_malformed_overlay_logs_warning_and_falls_back(self, tmp_path: Path, caplog):
+        from agentwire_cue.core.loader import _apply_local_overlay
+        cue = tmp_path / "cue.yaml"
+        cue.write_text("placeholder", encoding="utf-8")
+        overlay = tmp_path / "production.local.yaml"
+        overlay.write_text("a: [unclosed\n", encoding="utf-8")
+        base = {"spec": {"peers": {"remote_peer_a": {"uuid": "original"}}}}
+        import logging
+        caplog.set_level(logging.WARNING, logger="agentwire_cue.loader")
+        result = _apply_local_overlay(cue, base)
+        # Falls back to base on parse error
+        assert result["spec"]["peers"]["remote_peer_a"]["uuid"] == "original"
+        assert any("production.local.yaml overlay load failed" in r.message for r in caplog.records)
+
+
+class TestDiscoverPluginsSkipsLocalOverlay:
+    """v1.6.5: *.local.yaml files are NEVER plugins — they're overlays only."""
+
+    def test_discover_plugins_skips_local_yaml(self, tmp_path: Path):
+        from agentwire_cue.core.loader import discover_plugins
+        # Create a real plugin + a *.local.yaml overlay
+        real = tmp_path / "good.yaml"
+        real.write_text(_VALID_PLUGIN, encoding="utf-8")
+        local = tmp_path / "production.local.yaml"
+        local.write_text("a: 1\n", encoding="utf-8")
+        paths = discover_plugins(tmp_path)
+        names = [p.name for p in paths]
+        assert "good.yaml" in names
+        assert "production.local.yaml" not in names, (
+            "*.local.yaml files are overlays, not plugins. discover_plugins "
+            "must skip them to avoid spurious schema-validation failures."
+        )

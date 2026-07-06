@@ -143,6 +143,51 @@ def check_secrets(secrets: list[dict]) -> dict[str, str]:
     return resolved
 
 
+def _deep_merge(base: dict, overlay: dict) -> dict:
+    """v1.6.5: recursive dict merge with list replacement.
+
+    - Scalar leaves in ``overlay`` win over ``base``.
+    - Nested dicts recurse.
+    - Lists replace atomically (no item-by-item merge) so e.g.
+      ``permissions.peers`` is never partially merged.
+
+    Mutates neither ``base`` nor ``overlay`` — returns a new dict.
+    """
+    result = dict(base)
+    for key, overlay_val in overlay.items():
+        base_val = result.get(key)
+        if isinstance(base_val, dict) and isinstance(overlay_val, dict):
+            result[key] = _deep_merge(base_val, overlay_val)
+        else:
+            result[key] = overlay_val
+    return result
+
+
+def _apply_local_overlay(plugin_path: Path, plugin_dict: dict) -> dict:
+    """v1.6.5: merge ``production.local.yaml`` over ``cue.yaml`` if present.
+
+    Convention: each shipped example plugin (``examples/<name>/cue.yaml``)
+    may have a sibling ``production.local.yaml`` with real peer identifiers,
+    URLs, and token paths. The overlay is gitignored so operators can store
+    real values without committing them. The merged result is validated
+    against the same v1.2 schema as the base file — invalid keys fail at
+    load time.
+    """
+    overlay_path = plugin_path.parent / "production.local.yaml"
+    if not overlay_path.exists() or overlay_path.is_symlink():
+        return plugin_dict
+    try:
+        overlay = load_yaml(overlay_path)
+    except LoaderError as e:
+        log.warning(
+            "production.local.yaml overlay load failed for %s: %s (using base cue.yaml)",
+            plugin_path.name, e,
+        )
+        return plugin_dict
+    log.info("applying production.local.yaml overlay for %s", plugin_path.name)
+    return _deep_merge(plugin_dict, overlay)
+
+
 def get_safe_env(plugin_secrets: dict[str, str]) -> dict[str, str]:
     """v1.3 §3.5.1: action subprocess env MUST be explicit (best-effort isolation).
 
@@ -237,6 +282,9 @@ def load_plugin(plugin_path: Path) -> Plugin | None:
     """
     try:
         plugin_dict = load_yaml(plugin_path)
+        # v1.6.5: apply production.local.yaml overlay (if present) before
+        # schema validation so the merged shape is checked, not just the base.
+        plugin_dict = _apply_local_overlay(plugin_path, plugin_dict)
         validate_schema(plugin_dict, path=plugin_path)
 
         meta = plugin_dict.get("metadata", {})
@@ -328,6 +376,12 @@ def discover_plugins(plugin_dir: Path) -> list[Path]:
             # rglob follows symlinks by default; explicitly skip symlinks
             if p.is_symlink():
                 log.warning("skipping symlink: %s", p)
+                continue
+            # v1.6.5: *.local.yaml files are overlays (production.local.yaml
+            # or <peer>.local.yaml), not standalone plugins. Skip them to
+            # avoid spurious schema-validation failures; the loader applies
+            # them automatically as siblings of cue.yaml.
+            if p.name.endswith(".local.yaml") or p.name.endswith(".local.yml"):
                 continue
             found.append(p)
     return found
