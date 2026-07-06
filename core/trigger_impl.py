@@ -180,7 +180,7 @@ class A2ATrigger(Trigger):
                 Event(
                     type=message.get('type', 'A2A_MESSAGE'),
                     payload={'message': message},
-                    message_id=message.get('message_id'),
+                    message_id=message.get('messageId') or message.get('message_id'),
                 ),
                 source='a2a',
             )
@@ -358,7 +358,13 @@ class ContentMatchTrigger(Trigger):
                  self.id, self.contains, self.min_match, self.peer_filter or '*')
 
     def matches(self, payload: dict) -> bool:
-        return False  # check happens in _on_message, not via the simple matches()
+        # v1.6.5 fix: A2AListener calls this as a pre-filter before invoking
+        # the handler. If we always return False, _on_message is never called
+        # and the trigger is dead (even with CORE's push channel working).
+        text = self._extract_message_text(payload)
+        if not text:
+            return False
+        return sum(1 for kw in self.contains if kw in text) >= self.min_match
 
     def _extract_message_text(self, message: dict) -> str:
         """Extract all text from message parts."""
@@ -406,7 +412,7 @@ class ContentMatchTrigger(Trigger):
                         'matched_keywords': matched_kws,  # v1.6.2: list of actually-matched keyword strings
                         'contains_count': len(self.contains),  # v1.6.2: total keywords searched
                     },
-                    message_id=message.get('message_id'),
+                    message_id=message.get('messageId') or message.get('message_id'),
                 ),
                 source='content_match',
             )

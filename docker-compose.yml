@@ -2,7 +2,7 @@ services:
   agentwire-core:
     build:
       context: ../agentwire_core
-    image: agentwire-core:v1.5.5
+    image: agentwire-core:v1.5.6
     container_name: agentwire-core
     # v1.6.2: WSL2 环境下必须使用 host 网络模式
     #   - bridge 模式无法绑定 Tailscale IP (100.70.166.21) — 容器端口只能到 WSL localhost
@@ -19,10 +19,16 @@ services:
     secrets:
       - source: a2a-token
         target: a2a-token.txt
+      - source: cue-admin-token
+        target: cue-admin-token.txt
     environment:
       - CORE_LISTEN_HOST=0.0.0.0
       - CORE_LISTEN_PORT=18800
       - AGENTWIRE_TOKEN_FILE=/run/secrets/a2a-token.txt
+      # v1.5.6: CUE real-time push (restores a2a_content_match native path)
+      - CUE_FORWARD_URL=http://127.0.0.1:18801/a2a/inbound
+      - CUE_FORWARD_ENABLED=1
+      - CUE_FORWARD_TOKEN_FILE=/run/secrets/cue-admin-token.txt
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:18800/.well-known/agent.json"]
       interval: 30s

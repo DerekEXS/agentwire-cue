@@ -2,17 +2,18 @@ apiVersion: agentwire/v1.2
 kind: plugin
 
 # ============================================================================
-# v1.6.5 example: script-receiver (alias resolution fix)
+# v1.6.5 example: script-receiver (real-time a2a_content_match via CORE push)
 # ============================================================================
 # 用途: Pawly 发送含 project: + scenes: 的脚本 → 保存文件 → 通知初梦主 agent
-# 演示: history_change trigger + guard 表达式 + alias resolution
+# 演示: a2a_content_match trigger — CORE v1.5.6 实时推送消息到 CUE listener
 #
-# 历史教训 (v1.6.5 fix):
-#   * 之前使用 a2a_content_match，挂在 A2AListener (passive HTTP server)
-#     但 CORE 端没有 push 通道，触发器永远不 fire
-#   * history_change trigger 走轮询路径，能真正 fire
-#   * cue.yaml peer: 'remote_peer_a' 在 trigger_impl._poll_loop 里必须
-#     解析 alias → CORE uuid 8-char 前缀，否则匹配不上 (v1.6.5 alias 修复)
+# 架构 (v1.5.6 修复后):
+#   外部 Agent → CORE (18800) → _forward_to_cue() → CUE A2AListener (18801)
+#   → a2a_content_match 实时 fire (不再轮询!)
+#
+# 历史: v1.6.1 首次引入 a2a_content_match 但因 CORE 无 push 通道而空转;
+#   v1.6.5 Workaround 改用 history_change (轮询); v1.5.6 CORE 修复 push
+#   后本 trigger 恢复为 a2a_content_match (实时).
 #
 # 替换字段: 把 <set-me-*> 换成你自己的值就能本地跑通
 # ============================================================================
@@ -20,7 +21,7 @@ kind: plugin
 metadata:
   name: script-receiver
   version: 1.1.0
-  description: "v1.6.5 fix: history_change trigger + alias-resolved peer config. Real peer identifiers belong in production.local.yaml, not this file."
+  description: "v1.6.5 CORE-v1.5.6 real-time: a2a_content_match trigger via CORE push. Real peer identifiers belong in production.local.yaml, not this file."
 
 spec:
   # ------------------------------------------------------------------
@@ -43,40 +44,26 @@ spec:
 
   triggers:
     - id: on-script-received
-      type: history_change
+      type: a2a_content_match
       config:
-        peer: "remote_peer_a"
-        granularity: round
-        poll_interval_seconds: 15
+        contains:
+          - "project:"
+          - "scenes:"
+        min_match: 2
 
   statechart:
-    initial: watching
-    context:
-      last_notified_round: 0
-
+    initial: idle
     states:
-      watching:
+      idle:
+        type: final
         "on":
-          history_change:
-            target: watching
-            # v1.6.5: dual-keyword guard + round-based dedup.
-            # peer alias 'remote_peer_a' resolves to CORE's uuid 8-char
-            # prefix via HistoryClient._aliases (v1.6.5 alias fix).
-            guard: |
-              peers.remote_peer_a.history.last_inbound_contains('project:')
-              && peers.remote_peer_a.history.last_inbound_contains('scenes:')
-              && event.new_round > context.last_notified_round
+          content_match:
+            target: idle
             actions:
-              - type: set_context
-                with:
-                  last_notified_round: "{{event.new_round}}"
-
               - type: write_file
                 with:
-                  # Use peer alias (event.peer is CORE's 8-char hex; alias
-                  # is friendlier and matches the user's mental model).
-                  path: "/tmp/agentwire-scripts/remote_peer_a/script_{{event.timestamp}}.yaml"
-                  content: "{{peers.remote_peer_a.history.last_inbound_text()}}"
+                  path: "/home/agentwire/.local/share/agentwire-cue/scripts/script_{{event.message_id}}.yaml"
+                  content: "{{event.text}}"
 
               - type: send_a2a
                 with:
@@ -84,8 +71,8 @@ spec:
                   message:
                     text: |
                       收到脚本 from {{event.peer}}
-                      已匹配关键词: project: + scenes:
-                      已保存到: /tmp/agentwire-scripts/remote_peer_a/script_{{event.timestamp}}.yaml
+                      已匹配关键词: {{event.matched_keywords}}/{{event.contains_count}}
+                      已保存到: /home/agentwire/.local/share/agentwire-cue/scripts/script_{{event.timestamp}}.yaml
                       请按后续 workflow 处理
                   metadata:
                     workflow_pointer:
@@ -100,7 +87,7 @@ spec:
   permissions:
     network: { http_egress: [], raw_socket: false }
     filesystem:
-      - path: /tmp/agentwire-scripts
+      - path: /home/agentwire/.local/share/agentwire-cue/scripts/*
         modes: [write]
     subprocess: { allow: [] }
     env: []

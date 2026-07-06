@@ -426,17 +426,23 @@ class A2AListener:
             log.warning("A2A inbound auth disabled because no token is configured")
         body = await request.json()
         message = body.get('params', {}).get('message', {})
+        any_matched = False
         for handler in self._inbound_handlers:
             try:
                 if handler.__self__.matches(message) if hasattr(handler, '__self__') else True:
                     await handler(message)
-                    return web.json_response({
-                        'jsonrpc': '2.0',
-                        'id': body.get('id'),
-                        'result': {'kind': 'task', 'id': 'cue-task', 'status': {'state': 'accepted'}},
-                    })
+                    any_matched = True
+                    # v1.6.5 fix: do NOT return after first handler.
+                    # ContentMatchTrigger may match the same message as
+                    # A2AMessageType — both must fire.
             except Exception as e:
                 log.exception("inbound handler error: %s", e)
+        if any_matched:
+            return web.json_response({
+                'jsonrpc': '2.0',
+                'id': body.get('id'),
+                'result': {'kind': 'task', 'id': 'cue-task', 'status': {'state': 'accepted'}},
+            })
         # No match — S7.1 fix: 200 + error object (跟 JSON-RPC 协议)
         return web.json_response({
             'jsonrpc': '2.0',

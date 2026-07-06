@@ -258,13 +258,12 @@ def test_last_inbound_text_raises_history_empty_for_no_messages():
 # ===========================================================================
 
 @pytest.mark.asyncio
-async def test_script_receiver_yaml_uses_history_change_not_a2a_content_match():
-    """v1.6.5: script-receiver/cue.yaml must use history_change trigger type.
+async def test_script_receiver_yaml_uses_a2a_content_match_with_core_push():
+    """v1.5.6 CORE + v1.6.5 CUE: script-receiver uses a2a_content_match trigger.
 
-    ``a2a_content_match`` registers a handler on A2AListener (passive server)
-    but no push path exists from CORE → trigger never fires. The fix is to
-    switch to history_change + guard expression, matching the pattern used
-    by owner-alert since v1.4.3.
+    CORE v1.5.6 adds _forward_to_cue() so every inbound message is pushed
+    to CUE's A2AListener (18801) in real-time. a2a_content_match handlers
+    fire immediately — no history_change polling needed.
     """
     import yaml
     cue_path = Path(__file__).resolve().parents[1] / "examples" / "script-receiver" / "cue.yaml"
@@ -274,10 +273,10 @@ async def test_script_receiver_yaml_uses_history_change_not_a2a_content_match():
     assert len(triggers) >= 1, "script-receiver must have at least one trigger"
     on_script = next((t for t in triggers if t["id"] == "on-script-received"), None)
     assert on_script is not None, "missing on-script-received trigger"
-    assert on_script["type"] == "history_change", (
-        f"v1.6.5 BUG: on-script-received must use history_change trigger type, "
-        f"got {on_script['type']!r}. a2a_content_match requires a CORE→CUE push "
-        f"channel that doesn't exist."
+    assert on_script["type"] == "a2a_content_match", (
+        f"v1.5.6 CORE now pushes to CUE in real-time — trigger should use "
+        f"a2a_content_match (native push), not history_change (polling). "
+        f"Got type={on_script['type']!r}."
     )
 
 
@@ -302,28 +301,19 @@ async def test_script_receiver_yaml_declares_remote_peer_a_alias():
 
 
 @pytest.mark.asyncio
-async def test_script_receiver_yaml_guard_checks_both_keywords():
-    """v1.6.5: guard must require both 'project:' AND 'scenes:'.
+async def test_script_receiver_yaml_keywords_are_in_trigger_config():
+    """v1.6.5: keyword matching uses a2a_content_match config (contains+min_match).
 
-    The original a2a_content_match trigger had ``min_match: 2`` with both
-    keywords in ``contains``. The history_change replacement must preserve
-    this dual-keyword requirement via guard expression.
+    CORE v1.5.6 pushes messages to CUE listener in real-time; the trigger
+    fires immediately on keyword match — no guard expression needed.
     """
     import yaml
     cue_path = Path(__file__).resolve().parents[1] / "examples" / "script-receiver" / "cue.yaml"
     data = yaml.safe_load(cue_path.read_text(encoding="utf-8"))
 
-    states = data["spec"]["statechart"]["states"]
-    # Find the state that has the guard (v1.6.5 uses "watching" state with
-    # self-transition on history_change)
-    state_with_guard = next(
-        (s for s in states.values() if "history_change" in s.get("on", {})),
-        None,
-    )
-    assert state_with_guard is not None, f"no state with history_change 'on' handler, states: {list(states.keys())}"
-    guard_text = state_with_guard["on"]["history_change"].get("guard", "")
-    assert "project:" in guard_text, f"guard must check 'project:' keyword, got: {guard_text!r}"
-    assert "scenes:" in guard_text, f"guard must check 'scenes:' keyword, got: {guard_text!r}"
-    assert "last_inbound_contains" in guard_text, (
-        f"guard must use last_inbound_contains() for keyword matching, got: {guard_text!r}"
-    )
+    triggers = data["spec"]["triggers"]
+    on_script = next(t for t in triggers if t["id"] == "on-script-received")
+    config = on_script.get("config", {})
+    assert "project:" in config.get("contains", []), f"must contain 'project:' keyword, got {config}"
+    assert "scenes:" in config.get("contains", []), f"must contain 'scenes:' keyword, got {config}"
+    assert config.get("min_match", 1) >= 2, f"must require at least 2 keyword matches (min_match), got {config}"
