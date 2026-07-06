@@ -375,7 +375,9 @@ class A2AListener:
         from aiohttp import web
         app = web.Application()
         app.router.add_post('/a2a/inbound', self._handle_inbound)
+        app.router.add_post('/a2a/jsonrpc', self._handle_jsonrpc)
         app.router.add_get('/.well-known/agent.json', self._handle_agent_card)
+        app.router.add_get('/.well-known/agent-card.json', self._handle_agent_card)
         self._runner = web.AppRunner(app)
         await self._runner.setup()
 
@@ -450,20 +452,114 @@ class A2AListener:
             'error': {'code': -32603, 'message': 'no plugin matches'},
         }, status=200)
 
+    async def _handle_jsonrpc(self, request):
+        """Standard A2A JSON-RPC endpoint (v2.0).
+
+        Handles SendMessage, GetTask, ListTasks, CancelTask from
+        CORE v2.0 gateway. Dispatches SendMessage to trigger handlers
+        just like /a2a/inbound.
+        """
+        from aiohttp import web
+        if self.reject_new:
+            return web.json_response({'error': 'draining'}, status=503)
+        if self.auth_token:
+            auth = request.headers.get('Authorization', '')
+            if not auth.startswith('Bearer ') or not hmac.compare_digest(auth[7:], self.auth_token):
+                return web.json_response({'error': 'unauthorized'}, status=401)
+        else:
+            if not self.allow_inbound_without_token:
+                log.warning("A2A JSON-RPC refused: bound %s without token", self.host)
+                return web.json_response(
+                    {'error': 'bound_without_token',
+                     'detail': f"listener binds {self.host} but no auth_token is configured"},
+                    status=403,
+                )
+
+        body = await request.json()
+        method = body.get('method', '')
+        request_id = body.get('id')
+
+        if method == 'SendMessage':
+            params = body.get('params', {})
+            message = params.get('message', {})
+            any_matched = False
+            for handler in self._inbound_handlers:
+                try:
+                    if handler.__self__.matches(message) if hasattr(handler, '__self__') else True:
+                        await handler(message)
+                        any_matched = True
+                except Exception as e:
+                    log.exception("jsonrpc handler error: %s", e)
+            if any_matched:
+                return web.json_response({
+                    'jsonrpc': '2.0', 'id': request_id,
+                    'result': {'task': {'id': 'cue-task', 'status': {'state': 'TASK_STATE_WORKING'}}},
+                })
+            return web.json_response({
+                'jsonrpc': '2.0', 'id': request_id,
+                'error': {'code': -32603, 'message': 'no plugin matches'},
+            }, status=200)
+
+        if method == 'GetTask':
+            task_id = body.get('params', {}).get('id', '')
+            return web.json_response({
+                'jsonrpc': '2.0', 'id': request_id,
+                'result': {
+                    'id': task_id,
+                    'status': {'state': 'TASK_STATE_COMPLETED'},
+                },
+            })
+
+        if method == 'ListTasks':
+            return web.json_response({
+                'jsonrpc': '2.0', 'id': request_id,
+                'result': {'tasks': [], 'nextPageToken': '', 'pageSize': 0, 'totalSize': 0},
+            })
+
+        if method == 'CancelTask':
+            return web.json_response({
+                'jsonrpc': '2.0', 'id': request_id,
+                'error': {'code': -32601, 'message': 'CancelTask not supported by CUE'},
+            }, status=200)
+
+        return web.json_response({
+            'jsonrpc': '2.0', 'id': request_id,
+            'error': {'code': -32601, 'message': f'Method {method} not found'},
+        }, status=200)
+
     async def _handle_agent_card(self, request):
         from aiohttp import web
         return web.json_response({
-            'protocolVersion': '1.0.1',
+            'protocolVersion': '1.0',
             'name': 'agentwire-cue',
-            'description': f'Host with {len(self._plugins_info)} plugins',
+            'description': f'AgentWire CUE v{CUE_VERSION} — Workflow Orchestration Engine. '
+                           f'Hosts {len(self._plugins_info)} YAML statechart plugins.',
             'version': CUE_VERSION,
+            'supportedInterfaces': [
+                {
+                    'url': f'http://{self.host}:{self.port}/a2a/jsonrpc',
+                    'protocolBinding': 'jsonrpc',
+                    'protocolVersion': '1.0',
+                },
+            ],
+            'provider': {
+                'url': 'https://github.com/DerekEXS/agentwire-cue',
+                'organization': 'AgentWire',
+            },
             'capabilities': {
                 'streaming': False,
                 'pushNotifications': False,
                 'extendedAgentCard': False,
             },
             'skills': [
-                {'id': p['name'], 'name': p['name'], 'description': f"Plugin {p['name']}"}
+                {
+                    'id': p['name'],
+                    'name': p['name'],
+                    'description': f"Plugin: {p['name']} v{p.get('version', '?')}",
+                    'tags': ['cue', 'workflow', p['name']],
+                    'inputModes': ['text'],
+                    'outputModes': ['text'],
+                }
                 for p in self._plugins_info
             ],
             'defaultInputModes': ['text'],
