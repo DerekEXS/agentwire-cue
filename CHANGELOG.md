@@ -5,6 +5,64 @@ All notable changes to AgentWire-Cue are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.6.5] - 2026-07-06
+
+### 🐛 Bug Fixes
+
+**P0: script-receiver trigger was registered but never fired**
+- `examples/script-receiver/cue.yaml` rewrite: ``a2a_content_match`` → ``history_change``
+  with guard expression using ``last_inbound_contains('project:')`` AND
+  ``last_inbound_contains('scenes:')``. The original ``a2a_content_match``
+  trigger registers a handler on ``A2AListener`` (a passive HTTP server
+  listening on 18801) but CORE never pushes inbound messages to CUE, so
+  the handler is dead code.
+- New ``history_proxy._PeerHistoryProxy.last_inbound_text()`` method returns
+  the concatenated text of recent inbound messages (skips outbound CORE
+  auto-acks) so ``write_file`` actions can persist the full payload.
+
+**P0: history_change alias resolution was broken since v1.4.3**
+- ``core/trigger_impl.py::HistoryChangeTrigger._poll_loop`` matched
+  ``self.peer`` (e.g. ``'remote_peer_a'``) against CORE's ``messages/peers``
+  ``name`` field, which CORE returns as the first 8 chars of the peer uuid
+  (e.g. ``'75755f13'``). The string comparison never matched, so every
+  history_change trigger with an alias peer name was silently inactive —
+  including ``owner-alert`` (deployed since v1.4.3).
+- New private method ``_peer_matches(key)`` resolves ``self.peer`` via
+  ``HistoryClient._aliases`` (alias → uuid → CORE name 8-char prefix)
+  before comparing. Back-compat: explicit CORE names and ``peer: '*'``
+  continue to work.
+
+### 📦 Changed
+
+- `__init__.py`: `__version__ = "1.6.5"`
+- `examples/script-receiver/cue.yaml`: trigger type, guard expression,
+  peer declaration, `permissions.peers` (added `remote_peer_a`)
+- `core/trigger_impl.py`: `_peer_matches()` helper extracted from
+  `_poll_loop()` for testability and clarity
+- `core/history_proxy.py`: `last_inbound_text()` method added to
+  `_PeerHistoryProxy`
+
+### 🧪 Tests
+
+- New `tests/test_v165_script_receiver_fix.py` (11 cases):
+  - 4 cases for `_peer_matches` (alias resolves, CORE name back-compat,
+    wildcard, negative case)
+  - 4 cases for `last_inbound_text` (basic, skips outbound, multi-part
+    join, empty history raises `HistoryDiagnosticError`)
+  - 3 cases for `script-receiver/cue.yaml` shape (trigger type,
+    peer alias declared, guard has both keywords)
+- Test suite: **351 passed, 6 skipped, 0 failed** (was 340 passing before)
+
+### 📝 Acknowledgements
+
+Bug discovered by 初梦 (Chu Meng) on 2026-07-06 during Pawly's first
+end-to-end script delivery attempt after v1.5.5 CORE + v1.5.2 CUE
+went into production. Detailed analysis:
+[`AGENTWIRE-CUE/SILKTHREAD-FEEDBACK-SCRIPT-RECEIVER-FIX-2026-07-06.md`](
+  ../AGENTWIRE-CUE/SILKTHREAD-FEEDBACK-SCRIPT-RECEIVER-FIX-2026-07-06.md)
+
+---
+
 ## v1.5.x series (2026-06)
 
 The v1.5 series validates the workflow-pointer handoff path on top of CORE

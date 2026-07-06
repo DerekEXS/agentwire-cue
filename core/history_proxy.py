@@ -69,6 +69,33 @@ class _PeerHistoryProxy:
                     return True
         return False
 
+    def last_inbound_text(self) -> str:
+        """v1.6.5: concatenated text of recent inbound messages.
+
+        Used by ``script-receiver`` to write the full payload to disk after
+        the guard expression confirms keywords matched. Skips outbound
+        messages (CORE auto-acks) and joins text parts with newlines so the
+        saved file is a faithful copy of what the peer sent.
+        """
+        msgs = self.last(5)
+        if not msgs:
+            raise HistoryDiagnosticError(
+                "history_empty",
+                f"peer {self._meta.get('name') or self._requested_peer!r} history is empty",
+                peer=self._meta.get("name") or self._requested_peer,
+                uuid=self._meta.get("uuid"),
+            )
+        texts: list[str] = []
+        for m in msgs:
+            if m.get("role") != "inbound":
+                continue
+            for p in m.get("parts", []):
+                if p.get("type") == "text":
+                    t = p.get("text") or ""
+                    if t:
+                        texts.append(t)
+        return "\n".join(texts)
+
     def last_outbound_contains(self, needle: str) -> bool:
         """True if any recent outbound message text contains `needle`."""
         msgs = self.last(5)

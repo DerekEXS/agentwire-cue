@@ -228,12 +228,39 @@ class HistoryChangeTrigger(Trigger):
         log.info("history_change trigger %s registered (granularity=%s, peer=%s, poll=%ds)",
                  self.id, self.granularity, self.peer, self.poll_interval)
 
+    def _peer_matches(self, key: str) -> bool:
+        """v1.6.5: resolve alias → CORE uuid/name before matching.
+
+        Without this, ``peer: 'remote_peer_a'`` (alias) never matches
+        CORE's ``name`` field (which is the first 8 chars of the uuid,
+        e.g. ``'75755f13'``), so the trigger is registered but never
+        fires. Both owner-alert (v1.4.3+) and script-receiver (v1.6.1+)
+        were affected by this bug.
+        """
+        if self.peer == "*":
+            return True
+        if key == self.peer:
+            return True
+        # v1.6.5: alias → uuid resolution via HistoryClient._aliases
+        aliases = getattr(self._history_client, "_aliases", None) or {}
+        for alias_name, alias_meta in aliases.items():
+            if alias_name != self.peer:
+                continue
+            alias_uuid = (alias_meta or {}).get("uuid") or ""
+            if not alias_uuid:
+                continue
+            if key == alias_uuid or key == alias_uuid[:8]:
+                return True
+        return False
+
     async def _poll_loop(self) -> None:
         # Initial snapshot
         try:
             peers = self._history_client.list_peers()
             for p in peers:
                 key = p.get("name") or p.get("uuid")
+                if not self._peer_matches(key):
+                    continue
                 self._last_snapshot[key] = int(p.get("last_round", 0))
         except Exception as e:
             log.warning("history_change %s initial poll failed: %s", self.id, e)
@@ -248,7 +275,7 @@ class HistoryChangeTrigger(Trigger):
 
             for p in peers:
                 key = p.get("name") or p.get("uuid")
-                if self.peer != "*" and key != self.peer:
+                if not self._peer_matches(key):
                     continue
                 last = int(p.get("last_round", 0))
                 prev = self._last_snapshot.get(key, 0)

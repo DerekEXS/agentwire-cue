@@ -1,57 +1,99 @@
 apiVersion: agentwire/v1.2
 kind: plugin
 
+# ============================================================================
+# v1.6.5 example: script-receiver (alias resolution fix)
+# ============================================================================
+# 用途: Pawly 发送含 project: + scenes: 的脚本 → 保存文件 → 通知初梦主 agent
+# 演示: history_change trigger + guard 表达式 + alias resolution
+#
+# 历史教训 (v1.6.5 fix):
+#   * 之前使用 a2a_content_match，挂在 A2AListener (passive HTTP server)
+#     但 CORE 端没有 push 通道，触发器永远不 fire
+#   * history_change trigger 走轮询路径，能真正 fire
+#   * cue.yaml peer: 'remote_peer_a' 在 trigger_impl._poll_loop 里必须
+#     解析 alias → CORE uuid 8-char 前缀，否则匹配不上 (v1.6.5 alias 修复)
+#
+# 替换字段: 把 <set-me-*> 换成你自己的值就能本地跑通
+# ============================================================================
+
 metadata:
   name: script-receiver
-  version: 1.0.0
-  description: |
-    v1.6.4: 接收 peer A 的 A2A 脚本 → 保存文件 → 通知主 agent (peer `main`)。
-    监听包含 "project:" 和 "scenes:" 关键词的入站消息，
-    保存为 YAML 脚本文件，然后通过 send_a2a 通知初梦主 Agent。
+  version: 1.1.0
+  description: "v1.6.5 fix: history_change trigger + alias-resolved peer config. Real peer identifiers belong in production.local.yaml, not this file."
 
 spec:
+  # ------------------------------------------------------------------
+  # Peer alias table
+  # ------------------------------------------------------------------
+  # Slot names below are *placeholders*. Replace the keys entirely or
+  # override values via production.local.yaml.
   peers:
+    remote_peer_a:
+      uuid: "<set-me-remote_peer_a-uuid>"
+      url: "http://<set-me-remote_peer_a-host>:18800"
+      description: "<set-me-remote_peer_a description>"
+      # Per-peer A2A token. Compose mounts secrets/<peer>-a2a-token.txt
+      # into the container; cue.yaml references the in-container path.
+      token_file: "/run/secrets/peer-a-a2a-token.txt"
     main:
       uuid: "main-demo-uuid"
       url: "http://127.0.0.1:18800"
-      description: "初梦主 Agent"
+      description: "主 agent 路由入口"
 
   triggers:
     - id: on-script-received
-      type: a2a_content_match
+      type: history_change
       config:
-        contains:
-          - "project:"
-          - "scenes:"
-        min_match: 2
+        peer: "remote_peer_a"
+        granularity: round
+        poll_interval_seconds: 15
 
   statechart:
-    initial: waiting
-    states:
-      waiting:
-        type: final
-        actions:
-          - type: write_file
-            with:
-              path: "/tmp/agentwire-scripts/{{event.peer}}/script_{{event.timestamp}}.yaml"
-              content: "{{event.text}}"
+    initial: watching
+    context:
+      last_notified_round: 0
 
-          - type: send_a2a
-            with:
-              peer: main
-              message:
-                text: |
-                  收到脚本 from {{event.peer}}
-                  已保存到: /tmp/agentwire-scripts/{{event.peer}}/
-                  匹配关键词: {{event.matched_keywords}}/{{event.contains_count}}
-                  请按后续 workflow 处理
-              metadata:
-                workflow_pointer:
-                  workflow_file: "<set-me-workflow-filename>"
-                  workflow_version: "<set-me-workflow-version>"
-                  current_step: "<set-me-current-step>"
-                  next_action: "review_script"
-                  next_agent: "main"
+    states:
+      watching:
+        "on":
+          history_change:
+            target: watching
+            # v1.6.5: dual-keyword guard + round-based dedup.
+            # peer alias 'remote_peer_a' resolves to CORE's uuid 8-char
+            # prefix via HistoryClient._aliases (v1.6.5 alias fix).
+            guard: |
+              peers.remote_peer_a.history.last_inbound_contains('project:')
+              && peers.remote_peer_a.history.last_inbound_contains('scenes:')
+              && event.new_round > context.last_notified_round
+            actions:
+              - type: set_context
+                with:
+                  last_notified_round: "{{event.new_round}}"
+
+              - type: write_file
+                with:
+                  # Use peer alias (event.peer is CORE's 8-char hex; alias
+                  # is friendlier and matches the user's mental model).
+                  path: "/tmp/agentwire-scripts/remote_peer_a/script_{{event.timestamp}}.yaml"
+                  content: "{{peers.remote_peer_a.history.last_inbound_text()}}"
+
+              - type: send_a2a
+                with:
+                  peer: main
+                  message:
+                    text: |
+                      收到脚本 from {{event.peer}}
+                      已匹配关键词: project: + scenes:
+                      已保存到: /tmp/agentwire-scripts/remote_peer_a/script_{{event.timestamp}}.yaml
+                      请按后续 workflow 处理
+                  metadata:
+                    workflow_pointer:
+                      workflow_file: "<set-me-workflow-filename>"
+                      workflow_version: "<set-me-workflow-version>"
+                      current_step: "<set-me-current-step>"
+                      next_action: "review_script"
+                      next_agent: "main"
 
   secrets: []
 
@@ -64,4 +106,5 @@ spec:
     env: []
     peers:
       - main
+      - remote_peer_a
     timers: { max_concurrent: 3, min_interval_ms: 1000 }
