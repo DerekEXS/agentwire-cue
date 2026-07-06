@@ -92,6 +92,8 @@ spec:
     subprocess: { allow: [] }
     env: []
     peers:
-      - main
-      - remote_peer_a
+      - id: main
+        allow_messages: ["*"]
+      - id: remote_peer_a
+        allow_messages: ["*"]
     timers: { max_concurrent: 3, min_interval_ms: 1000 }
