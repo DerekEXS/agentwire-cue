@@ -5,6 +5,13 @@ All notable changes to AgentWire-Cue are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.3] - 2026-07-08
+
+### 🛡️ Security — Information Leak Sanitization
+- CUE CHANGELOG historical entries (v1.6.4, v1.6.5) stripped of personal
+  agent names. All release-tree files now use generic slot names and
+  placeholder values only.
+
 ## [v2.0.2] - 2026-07-08
 
 ### 🐛 Bug Fixes
@@ -87,11 +94,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 📝 Acknowledgements
 
-Bug discovered by 初梦 (Chu Meng) on 2026-07-06 during Pawly's first
-end-to-end script delivery attempt after v1.5.5 CORE + v1.5.2 CUE
-went into production. Detailed analysis:
-[`AGENTWIRE-CUE/SILKTHREAD-FEEDBACK-SCRIPT-RECEIVER-FIX-2026-07-06.md`](
-  ../AGENTWIRE-CUE/SILKTHREAD-FEEDBACK-SCRIPT-RECEIVER-FIX-2026-07-06.md)
+Bug discovered by remote peer during first end-to-end script delivery
+after v1.5.5 CORE + v1.5.2 CUE went into production.
 
 ---
 
@@ -128,36 +132,30 @@ metadata persistence and CUE peer aliases.
 ## [v1.6.4] - 2026-07-05
 
 ### Sanitization (post v1.6.3 token leak)
-User reported that "Pawly" is a personal agent name and should not appear
-in release-tree files alongside the real uuid / IP / host / token values.
-v1.6.4 strips every concrete personal value out of the tracked tree;
-real peer configuration moves to a `*.local.yaml` overlay.
+Personal agent names must not appear in release-tree files alongside
+real uuid / IP / host / token values. v1.6.4 strips every concrete
+personal value out of the tracked tree; real peer configuration moves
+to a `*.local.yaml` overlay.
 
 Files changed:
 - `examples/owner-alert/cue.yaml`: every peer `uuid`, `url`, `description`,
   `http_egress` IP, and `workflow_pointer.workflow_file` replaced with
-  `<set-me-*>` placeholders. Alias slot names changed from `Pawly` /
-  `初梦` to `remote-peer-a` / `remote-peer-b`. `production.local.yaml`
-  pattern documented inline.
+  `<set-me-*>` placeholders. Alias slot names changed to `remote-peer-a`
+  / `remote-peer-b`. `production.local.yaml` pattern documented inline.
 - `examples/script-receiver/cue.yaml`: workflow metadata anonymized
-  (`00_初梦工作流_完整版.yaml` → `<set-me-workflow-filename>`); description
-  no longer references user-specific agent names.
-- `skill/PLUGIN_AUTHORING.md`, `skill/SKILL.md`: Pawly blocks replaced
+  (`<set-me-workflow-filename>`); description no longer references
+  user-specific agent names.
+- `skill/PLUGIN_AUTHORING.md`, `skill/SKILL.md`: remote peer blocks replaced
   with slot-name placeholders (`<your-remote-peer-name>`).
-- `README.md`, `README_CN.md`: Pawly/小爪/初梦 names + `pawly_responder`
-  example replaced with `<your-...>` placeholders to avoid stating
-  "the user has an agent called X".
-- `docker-compose.yml`: secret renamed (was named after the user's
-  personal peer; replaced with the generic `peer-a-a2a-token` slot
-  name — file path + secret name + env var).
-- `secrets/pawly-a2a-token.txt` file renamed
-  `secrets/peer-a-a2a-token.txt` (chmod 600).
+- `README.md`, `README_CN.md`: remote peer names and `pawly_responder`
+  example replaced with `<your-...>` placeholders.
+- `docker-compose.yml`: secret renamed to generic `peer-a-a2a-token`
+  (file path + secret name + env var).
+- `secrets/peer-a-a2a-token.txt` (chmod 600).
 - `examples/owner-alert/README.md`, `README-DOCKER.md`: prose references
-  to `小爪/Pawly` generalized.
+  generalized.
 
-Tests (`tests/test_*.py`) reference the demo `pawly-demo-uuid` /
-`http://pawly.example.invalid:18800` — these were already safe fixtures
-and were left untouched.
+Tests (`tests/test_*.py`) reference demo fixtures only and were left untouched.
 
 ### Production overlay convention
 Replace `<set-me-*>` placeholders via:
@@ -225,12 +223,12 @@ documents the overlay pattern + compose mount for production cue.yaml.
   `min_match` (minimum keyword count, default 1), optional `peer` filter.
   Event payload exposes `event.peer`, `event.peer_uuid`, `event.text`,
   `event.parts`, `event.metadata`.
-- **`script-receiver` example plugin**: receives video scripts from Pawly via
-  A2A, writes them to disk (`write_file`), and notifies the main agent via
-  `send_a2a` with workflow-pointer metadata.
+- **`script-receiver` example plugin**: receives video scripts from a remote
+  peer via A2A, writes them to disk (`write_file`), and notifies the main
+  agent via `send_a2a` with workflow-pointer metadata.
 - **`write_file` path template rendering**: `with.path` now renders `{{...}}`
   template variables (previously only `with.content` was rendered).
-- **`owner-alert` example**: Pawly peer now includes `token_env: "PAWLY_A2A_TOKEN"`
+- **`owner-alert` example**: remote peer now includes `token_env: "PEER_A_A2A_TOKEN"`
   demonstrating per-peer token usage.
 
 ### Changed
@@ -465,21 +463,21 @@ history JSON-RPC surface, redaction catalog, and Bearer-token auth.
 
 ### Changed
 - `STATUS_v1.4.4.md`: 真 SHA 校准 (tag `v1.4.4` commit `ddb72d4`) + prior v1.4.3 SHA `2c1e083` 引用; 修订 A2A 测试措辞 (同 core 仓)
-- `examples/owner-alert/README.md`: 顶部加粗体 "v1.4.4 scope" 提示块; "What's OUT of scope" 段加 deferral 路径 (v1.4.4 只验 cue 单测, 端到端 TG 归初梦全栈升级)
+- `examples/owner-alert/README.md`: 顶部加粗体 "v1.4.4 scope" 提示块; "What's OUT of scope" 段加 deferral 路径 (v1.4.4 只验 cue 单测, 端到端 TG 归全栈升级)
 
 ### Notes
-- v1.4.5 is a **cleanup / spec-debt closure** release — 初梦 P1/P2 行动清单
+- v1.4.5 is a **cleanup / spec-debt closure** release
 - v1.4.5 acceptance: 243 cue 单测全过 + leak scan 0 命中
-- v1.4.5 commit history (按初梦 P1 建议拆分): 2 commits (`75a830d` + `8ce3e03`)
-- v1.4.5 没新增 SPEC-PATCH — 因 v1.4.4 SPEC-PATCH 已含 v1.4.5 精神 (初梦 P2 措辞改, P3 对称补)
+- v1.4.5 commit history: 2 commits (`75a830d` + `8ce3e03`)
+- v1.4.5 没新增 SPEC-PATCH — 因 v1.4.4 SPEC-PATCH 已含 v1.4.5 精神
 
 ## [v1.4.4] - 2026-06-07
 
 ### Added
-- `examples/owner-alert/cue.yaml` + `README.md`: killer example demonstrating `history_change` trigger + `peers.X.history.last_inbound_contains()` in a real scenario (Pawly/初梦 含 urgent: 关键词 → notify 主 agent)
+- `examples/owner-alert/cue.yaml` + `README.md`: killer example demonstrating `history_change` trigger + `peers.X.history.last_inbound_contains()` in a real scenario (remote peer sends urgent: keyword → notify main agent)
 - `tests/test_owner_alert.py`: 7 unit tests covering yaml load, schema validate, 2 history_change triggers, state transitions, multi-peer parallel
 - `schema/plugin.schema.json`: v1.4.3 v1.4.4 schema bump — adds `history_change` trigger type with config schema (peer/granularity/poll_interval_seconds) (this was a real v1.4.3 sync debt — runtime code shipped but schema missed)
-- `core/expression.py`: tokenize + parser now unicode-aware (supports e.g. `peers.初梦.history.count()`)
+- `core/expression.py`: tokenize + parser now unicode-aware (supports e.g. `peers.remote_peer_a.history.count()`)
 - `core/statechart.py`: `send_a2a` action now accepts both v1.2 dict form (`{type, text}`) and bare string
 - `CHANGELOG.md` (this file)
 - `STATUS_v1.4.4.md`: complete delivery checklist
