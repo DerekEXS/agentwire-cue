@@ -44,7 +44,8 @@ Compose 默认只发布到宿主机 loopback：
 
 如需 LAN/VPN 访问，先确认防火墙、VPN 或 TLS 反代已配置，再移除端口映射前的 `127.0.0.1:`。容器内服务仍会显式使用 `--a2a-listener-host 0.0.0.0` 和 `--admin-host 0.0.0.0`，这样 Docker 才能发布端口；宿主机暴露面由 compose 的 `127.0.0.1:` 前缀控制。不要把 18800/18801/19000 直接暴露到公网。
 
-> v1.5.5 起，`/a2a/inbound` 使用 CUE admin token 做 Bearer auth。OpenClaw 路由层调用时需要把 admin token 写入请求头，而不是旧版 A2A token。
+> **v2.0 CUE** 通过标准 `/a2a/jsonrpc` 接收消息（与 CORE v2.0 标准对齐），
+> `/a2a/inbound` 作为 v1.x 兼容路径保留——仍需 CUE admin token 做 Bearer auth。
 
 ## 配置生产 owner-alert
 
@@ -81,15 +82,19 @@ spec:
 注意: peer alias 名不能用 `-`（会被 `peers.<name>.history.*` 表达式解析为减号）。
 用 snake_case（如 `remote_peer_a`）或 camelCase。
 
-获取 `main` peer uuid 的方式：
+获取 `main` peer uuid 的方式（v2.0 通过 ListTasks 反查 contextId）：
 
 ```bash
 TOKEN=$(cat secrets/a2a-token.txt)
 curl -s -H "Authorization: Bearer $TOKEN" \
+  -H "A2A-Version: 1.0" \
   -H 'Content-Type: application/json' \
   http://127.0.0.1:18800/a2a/jsonrpc \
-  -d '{"jsonrpc":"2.0","id":1,"method":"messages/peers","params":{}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"ListTasks","params":{"pageSize":20}}'
 ```
+
+> 注：CORE v2.0 任务库取代了 v1.x 的 per-peer history store。Peer uuid 取自任务的 `contextId` 前 8 位。
+> 旧 v1.5.x server 的 `messages/peers` 端点仍可用作兼容。
 
 也可以查看现有 history 文件名：
 

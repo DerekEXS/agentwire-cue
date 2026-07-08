@@ -7,13 +7,13 @@
 [![A2A Protocol](https://img.shields.io/badge/A2A-v1.0.1-blue)](https://a2a-protocol.org/latest/specification/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
-[![Status](https://img.shields.io/badge/status-v1.6.1-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v1.6.1)
+[![Status](https://img.shields.io/badge/status-v2.0.0-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v2.0.0)
 
 ---
 
 ## What is AgentWire-Cue?
 
-AgentWire-Cue is a **plugin host** that loads YAML-defined statecharts and reacts to events on the A2A v1.0.1 wire. Cue consumes AgentWire-Core's A2A service: it reads message history via JSON-RPC, evaluates state guards against the latest rounds, and fires actions back through the gateway.
+AgentWire-Cue is a **plugin host** that loads YAML-defined statecharts and reacts to events on the A2A v1.0 wire. Cue consumes AgentWire-Core's A2A service: it receives standard A2A JSON-RPC events (push-delivered by CORE v2.0's `_forward_to_cue()` channel), evaluates state guards against the latest data, and fires actions back through the gateway.
 
 Use cue when you want to:
 - Define agent behaviors as **declarative YAML** (no Python boilerplate)
@@ -264,9 +264,9 @@ agentwire-cue/
 
 ## Deployment
 
-> **Docker Compose is the canonical deployment method** (CUE v1.6.1+). See the repo root `docker-compose.yml`.
+> **Docker Compose is the canonical deployment method** (CUE v2.0.0+). See the repo root `docker-compose.yml`.
 
-Docker images: CORE `agentwire-core:v1.5.5` / CUE `agentwire-cue:v1.6.1`. Both bind `127.0.0.1` by default.
+Docker images: CORE `agentwire-core:v2.0.1` / CUE `agentwire-cue:v2.0.0`. Both bind `127.0.0.1` by default.
 All ports are published on host-loopback only.
 
 ### Docker Compose (recommended)

@@ -7,13 +7,13 @@
 [![A2A Protocol](https://img.shields.io/badge/A2A-v1.0.1-blue)](https://a2a-protocol.org/latest/specification/)
 [![许可证](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
-[![状态](https://img.shields.io/badge/status-v1.6.0-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v1.6.0)
+[![状态](https://img.shields.io/badge/status-v2.0.0-green)](https://github.com/DerekEXS/agentwire-cue/releases/tag/v2.0.0)
 
 ---
 
 ## 什么是 AgentWire-Cue?
 
-AgentWire-Cue 是一个**插件 host**,加载 YAML 定义的 statechart,对 A2A v1.0.1 wire 上的事件做出反应。Cue 消费 AgentWire-Core 的 A2A 服务:通过 JSON-RPC 读消息历史、根据最新轮次求值状态 guard、通过网关回送动作。
+AgentWire-Cue 是一个**插件 host**,加载 YAML 定义的 statechart,对 A2A v1.0 wire 上的事件做出反应。Cue 消费 AgentWire-Core 的 A2A 服务:接收 CORE v2.0 通过 `_forward_to_cue()` 通道推送过来的标准 A2A JSON-RPC 事件、根据最新数据求值状态 guard、通过网关回送动作。
 
 在以下场景用 cue:
 - 用**声明式 YAML** 定义 agent 行为(无 Python 样板)
@@ -264,9 +264,9 @@ agentwire-cue/
 
 ## 部署说明
 
-> **Docker Compose 是规范部署方式**(CUE v1.6.0+)。见仓库根目录 `docker-compose.yml`。
+> **Docker Compose 是规范部署方式**(CUE v2.0.0+)。见仓库根目录 `docker-compose.yml`。
 
-Docker 镜像:CORE `agentwire-core:v1.5.5` / CUE `agentwire-cue:v1.6.0`。两者默认绑 `127.0.0.1`,端口仅 host-loopback 发布。
+Docker 镜像:CORE `agentwire-core:v2.0.1` / CUE `agentwire-cue:v2.0.0`。两者默认绑 `127.0.0.1`,端口仅 host-loopback 发布。
 
 ### Docker Compose(推荐)
 

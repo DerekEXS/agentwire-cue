@@ -5,6 +5,29 @@ All notable changes to AgentWire-Cue are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.0] - 2026-07-07
+
+### 🚀 Architecture Reposition
+- **Repositioned**: from "polling trigger host" to **A2A-Native Workflow Orchestration Engine**
+- Replaced private CORE history polling with standard A2A JSON-RPC event reception via CORE v2.0's
+  real-time `_forward_to_cue()` push channel
+- Plugin triggers now react to events on the A2A wire, not to periodic CORE polls
+- Behavior change visible only in deployment: plugins that relied on `history_change` polling now
+  fire in real-time when CORE pushes the corresponding A2A event
+
+### ✨ Added
+- New endpoint `/.well-known/agent-card.json` (A2A standard discovery path)
+- New endpoint `/a2a/jsonrpc` — handles standard `SendMessage`, `GetTask`, `ListTasks` JSON-RPC methods
+  dispatched to trigger handlers
+- Updated Agent Card to A2A v1.0 format with `supportedInterfaces`, `provider`, `skills`
+- Compose: CORE image reference updated from `agentwire-core:v1.5.6` → `agentwire-core:v2.0.0`
+
+### 🔄 Backward Compatibility
+- `/a2a/inbound` route retained — still receives messages from CORE v1.x with admin token auth
+- `/.well-known/agent.json` route retained — same content as the new `agent-card.json`
+- All existing plugins continue to work without modification
+- All 359 existing tests pass without changes
+
 ## [v1.6.5] - 2026-07-06
 
 ### 🐛 Bug Fixes
