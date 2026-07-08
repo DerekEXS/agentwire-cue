@@ -10,6 +10,7 @@ Cue plugin expressions and triggers can then read history via
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 import urllib.error
@@ -17,6 +18,8 @@ import urllib.request
 from pathlib import Path
 from threading import RLock
 from typing import Any
+
+log = logging.getLogger("agentwire.history")
 
 
 class HistoryClient:
@@ -166,12 +169,75 @@ class HistoryClient:
         return msgs
 
     def list_peers(self) -> list[dict]:
+        """v2.0.2: use ListTasks instead of deprecated messages/peers.
+
+        ListTasks has no peerId filter, so we paginate all tasks and
+        derive peer identity from task.context_id prefix (e.g. 'pawly::123').
+        Falls back to configured aliases when ListTasks is unavailable.
+        """
         key = ("peers",)
         cached = self._get_cached(key)
         if cached is not None:
             return cached
-        result = self._rpc("messages/peers", {})
-        peers = result.get("peers", [])
+
+        peers_map: dict[str, dict] = {}
+
+        # v2.0.2: primary — ListTasks with pagination
+        try:
+            page_token = ""
+            while True:
+                params = {"page_size": 100}
+                if page_token:
+                    params["page_token"] = page_token
+                result = self._rpc("ListTasks", params)
+                tasks = result.get("tasks", [])
+                for task in tasks:
+                    ctx_id = task.get("contextId", "") or ""
+                    # contextId format: 'peer_name::uuid' or just 'uuid'
+                    if "::" in ctx_id:
+                        peer_name = ctx_id.split("::", 1)[0]
+                    else:
+                        # No peer prefix — skip (task from unknown peer)
+                        continue
+                    if peer_name not in peers_map:
+                        peers_map[peer_name] = {
+                            "name": peer_name,
+                            "uuid": task.get("id", "")[:8],
+                            "last_round": 0,
+                        }
+                    # Track highest round seen
+                    task_id = task.get("id", "")
+                    try:
+                        round_num = int(task_id, 16) if task_id.startswith("0x") else 0
+                        # Use task_id hash as proxy for ordering
+                        peers_map[peer_name]["last_round"] = max(
+                            peers_map[peer_name].get("last_round", 0),
+                            round_num,
+                        )
+                    except (ValueError, TypeError):
+                        pass
+                # Pagination
+                next_token = result.get("next_page_token", "") or result.get("nextPageToken", "")
+                if not next_token:
+                    break
+                page_token = next_token
+                if len(peers_map) >= 50:  # safety cap
+                    break
+        except Exception as e:
+            log.warning("list_peers ListTasks failed (%s), falling back to aliases", e)
+            # v2.0.2: fallback — synthesize from configured aliases
+            if self._aliases:
+                for alias_name, alias_meta in self._aliases.items():
+                    peers_map[alias_name] = {
+                        "name": alias_name,
+                        "uuid": alias_meta.get("uuid", alias_name[:8]),
+                        "last_round": 0,
+                    }
+            else:
+                # Last resort: return empty (no peers known)
+                pass
+
+        peers = list(peers_map.values())
         self._set_cached(key, peers)
         return peers
 

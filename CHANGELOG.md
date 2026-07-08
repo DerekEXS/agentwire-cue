@@ -5,6 +5,15 @@ All notable changes to AgentWire-Cue are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.0.2] - 2026-07-08
+
+### 🐛 Bug Fixes
+- `history_client.list_peers()`: replace deprecated `messages/peers` (v1.x) with
+  `ListTasks` pagination (v2.0). Derives peer identity from `contextId` prefix.
+  Falls back to configured aliases when `ListTasks` is unavailable.
+- `HistoryProxy.refresh()`: no longer crashes when `list_peers` returns empty
+  due to v2.0 API changes.
+
 ## [v2.0.0] - 2026-07-07
 
 ### 🚀 Architecture Reposition
