@@ -1,31 +1,34 @@
-# AgentWire-Cue SKILL (v1.6.2)
+# AgentWire-Cue SKILL (v2.0.0)
 
 > **Language**: English | [中文版 (SKILL_CN.md)](SKILL_CN.md)
 
 ## What is AgentWire-Cue?
 
-AgentWire-Cue is a **YAML statechart plugin host** running on top of [AgentWire A2A v1.0.1](https://a2a-protocol.org). You write workflow plugins as `*.yaml` files under the `agentwire/v1.2` schema; the host loads them, evaluates triggers, and executes state transitions and actions.
+AgentWire-Cue is a **YAML statechart plugin host** running on top of [AgentWire A2A v1.0](https://a2a-protocol.org). You write workflow plugins as `*.yaml` files under the `agentwire/v1.2` schema; the host loads them, evaluates triggers, and executes state transitions and actions.
 
-Cue is the **behavior** layer. The AgentWire CORE gateway is the **protocol + history** layer. Cue connects to CORE via A2A JSON-RPC, consumes message history through `peers.*` and `history.*` namespace expressions, and sends reactions back through `send_a2a` actions.
+Cue is the **behavior** layer. The AgentWire CORE gateway is the **protocol + TaskStore** layer. Cue connects to CORE v2.0 by **receiving standard A2A JSON-RPC events** via CORE's real-time `_forward_to_cue()` push channel (not by polling), evaluates state guards against the latest Task data, and sends reactions back through `send_a2a` actions.
 
 ## Architecture
 
 ```
 ┌────────────────────────────────────────────────┐
-│       AgentWire CORE (18800)                    │
-│       - JSONL history (per-peer)                │
-│       - JSON-RPC API                            │
+│       AgentWire CORE v2.0 (18800)               │
+│       - a2a-sdk v1.1.0 based gateway           │
+│       - SQLite TaskStore (tasks/status/ctx)    │
+│       - Standard JSON-RPC (PascalCase methods) │
 │       - Bearer-token auth (hmac)                │
 └─────────────┬──────────────────────────────────┘
-              │ HTTP + Bearer
+              │ _forward_to_cue() real-time push
               ▼
 ┌────────────────────────────────────────────────┐
-│       AgentWire-Cue host                       │
+│       AgentWire-Cue v2.0 host                  │
 │       - loads plugins from dir                 │
 │       - evaluates statecharts                  │
-│       - polls messages/peers for history triggers│
-│       - peers.Pawly.history.last_inbound_contains()│
-│       - 18801: A2A inbound (admin-token gated) │
+│       - receives standard A2A JSON-RPC events   │
+│         via CORE push (real-time, event-driven)│
+│       - peers.<name>.task.last() / history()   │
+│       - 18801: /a2a/jsonrpc standard +          │
+│                 /a2a/inbound (v1.x compat)      │
 │       - 19000: admin API (token gated)         │
 └────────────────────────────────────────────────┘
         ▲
@@ -177,8 +180,8 @@ Methods on `peers.<name>.history`:
 |------|-------------|---------------|
 | `cron` | Cron expression matches | `expression`, `timezone` |
 | `a2a_message_type` | Inbound A2A message arrives on 18801 | `match: "*"` or specific type string |
-| `a2a_content_match` (v1.6.1+) | Inbound A2A message text contains ≥ `min_match` of the listed keywords | `contains` (list, required), `min_match` (default 1), `peer` (optional filter) |
-| `history_change` (v1.4.3) | Peer round count changes | `peer`, `granularity: round`, `poll_interval_seconds` |
+| `a2a_content_match` (v1.6.1+) | Inbound A2A message text contains ≥ `min_match` of the listed keywords. **v2.0+**: real-time event-driven via CORE push | `contains` (list, required), `min_match` (default 1), `peer` (optional filter) |
+| `history_change` (v1.4.3) | Peer Task count changes. **v2.0+**: also real-time event-driven via CORE push; legacy polling only if CORE is on v1.5.x | `peer`, `granularity: round`, `poll_interval_seconds` |
 
 ### `a2a_content_match` event payload
 

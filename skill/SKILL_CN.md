@@ -1,31 +1,34 @@
-# AgentWire-Cue SKILL 中文版 (v1.6.2)
+# AgentWire-Cue SKILL 中文版 (v2.0.0)
 
 > **语言**: 简体中文 | [English](SKILL.md)
 
 ## 什么是 AgentWire-Cue?
 
-AgentWire-Cue 是基于 [AgentWire A2A v1.0.1](https://a2a-protocol.org) 协议的 **YAML statechart 插件引擎**。你把工作流写成 `*.yaml` 文件（遵循 `agentwire/v1.2` schema），host 加载后评估 trigger、执行状态转换和 action。
+AgentWire-Cue 是基于 [AgentWire A2A v1.0](https://a2a-protocol.org) 协议的 **YAML statechart 插件引擎**。你把工作流写成 `*.yaml` 文件（遵循 `agentwire/v1.2` schema），host 加载后评估 trigger、执行状态转换和 action。
 
-Cue 是**行为**层，AgentWire CORE 网关是**协议+历史**层。Cue 通过 A2A JSON-RPC 连接 CORE，用 `peers.*` 和 `history.*` namespace 表达式消费消息历史，用 `send_a2a` action 发回响应。
+Cue 是**行为**层，AgentWire CORE 网关是**协议 + TaskStore**层。Cue 通过 CORE v2.0 的 `_forward_to_cue()` 实时推送通道**接收标准 A2A JSON-RPC 事件**（不再主动轮询），用 `peers.*` 和 `history.*` namespace 表达式针对最新 Task 数据评估状态 guard，通过 `send_a2a` action 发回响应。
 
 ## 架构
 
 ```
 ┌────────────────────────────────────────────────┐
-│       AgentWire CORE (18800)                    │
-│       - JSONL history (按 peer 分文件)         │
-│       - JSON-RPC API                            │
+│       AgentWire CORE v2.0 (18800)               │
+│       - 基于 a2a-sdk v1.1.0 的网关             │
+│       - SQLite TaskStore (任务/状态/上下文)     │
+│       - 标准 JSON-RPC (PascalCase 方法)         │
 │       - Bearer-token 鉴权 (hmac)                │
 └─────────────┬──────────────────────────────────┘
-              │ HTTP + Bearer
+              │ _forward_to_cue() 实时推送
               ▼
 ┌────────────────────────────────────────────────┐
-│       AgentWire-Cue host                       │
+│       AgentWire-Cue v2.0 host                  │
 │       - 加载插件目录 *.yaml                     │
 │       - 执行 statechart 评估                    │
-│       - 轮询 messages/peers 触发 history_change │
-│       - peers.Pawly.history.last_inbound_contains()│
-│       - 18801: A2A 入站 (admin token 鉴权)      │
+│       - 接收 CORE 推送的标准 A2A JSON-RPC 事件 │
+│         (实时, 事件驱动)                       │
+│       - peers.<name>.task.last() / history()   │
+│       - 18801: /a2a/jsonrpc 标准 +              │
+│                 /a2a/inbound (v1.x 兼容)        │
 │       - 19000: admin API (token 鉴权)          │
 └────────────────────────────────────────────────┘
         ▲
@@ -142,8 +145,8 @@ spec:
 |------|-------------|------|
 | `cron` | 定时表达式匹配 | `expression`, `timezone` |
 | `a2a_message_type` | 18801 收到入站 A2A 消息 | `match: "*"` 或具体类型 |
-| `a2a_content_match` (v1.6.1+) | 入站 A2A 消息文本命中至少 `min_match` 个关键词 | `contains` (必填)、`min_match` (默认 1)、`peer` (可选过滤) |
-| `history_change` (v1.4.3) | peer 轮数变化 | `peer`, `granularity: round`, `poll_interval_seconds` |
+| `a2a_content_match` (v1.6.1+) | 入站 A2A 消息文本命中至少 `min_match` 个关键词。**v2.0+**: CORE 推送实时触发 | `contains` (必填)、`min_match` (默认 1)、`peer` (可选过滤) |
+| `history_change` (v1.4.3) | peer 任务数变化。**v2.0+**: CORE 推送实时触发；旧 v1.5.x server 仍走轮询 | `peer`, `granularity: round`, `poll_interval_seconds` |
 
 ### `a2a_content_match` event payload
 
