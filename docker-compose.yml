@@ -3,7 +3,7 @@ services:
     build:
       context: ../agentwire_core
       dockerfile: Dockerfile.v2
-    image: agentwire-core:v2.0.7
+    image: agentwire-core:v2.0.8
     container_name: agentwire-core
     # v1.6.2: WSL2 环境下必须使用 host 网络模式
     #   - bridge 模式无法绑定 Tailscale IP (100.70.166.21) — 容器端口只能到 WSL localhost
@@ -26,14 +26,14 @@ services:
         target: peer-a-a2a-token.txt
     environment:
       - CORE_LISTEN_HOST=0.0.0.0
-      - CORE_LISTEN_PORT=18800
+      - CORE_LISTEN_PORT=18880
       - AGENTWIRE_TOKEN_FILE=/run/secrets/a2a-token.txt
       # v1.5.6: CUE real-time push (restores a2a_content_match native path)
       - CUE_FORWARD_URL=http://127.0.0.1:18801/a2a/inbound
       - CUE_FORWARD_ENABLED=1
       - CUE_FORWARD_TOKEN_FILE=/run/secrets/cue-admin-token.txt
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18800/.well-known/agent.json"]
+      test: ["CMD", "curl", "-f", "http://localhost:18880/.well-known/agent.json"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -43,7 +43,7 @@ services:
   agentwire-cue:
     build:
       context: .
-    image: agentwire-cue:v2.0.6
+    image: agentwire-cue:v2.0.7
     container_name: agentwire-cue
     # v1.6.2: 跟随 CORE 用 host 网络模式（同样 WSL2 Tailscale 兼容原因）
     # 18801/19000 通过下方 ports 映射限制仅 host loopback 可达
@@ -65,7 +65,7 @@ services:
       # v1.6.3 (silk-thread hotfix): WSL+k8s+network_mode:host 下,
       #   `agentwire-core` service 名解析成 198.18.0.0/15 假 Service IP
       #   (TCP 握手后被 kernel RST). 两 service 共用 host 网络栈 → 直走 loopback.
-      - CUE_CORE_URL=http://127.0.0.1:18800
+      - CUE_CORE_URL=http://127.0.0.1:18880
       - CUE_ADMIN_TOKEN_FILE=/run/secrets/cue-admin-token.txt
       # v1.6.3 hotfix: a remote peer CORE (Tailscale IP example, real value in *.local overlay) uses its own A2A token.
       #   历史上曾以字面 env 落地 → 已改为 Docker secrets 文件模式
