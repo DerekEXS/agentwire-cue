@@ -7,10 +7,8 @@
 ```bash
 cd agentwire_cue
 mkdir -p secrets
-printf %s
- YOUR_A2A_TOKEN > secrets/a2a-token.txt
-printf %s
- YOUR_ADMIN_TOKEN > secrets/cue-admin-token.txt
+printf '%s\n' 'YOUR_A2A_TOKEN' > secrets/a2a-token.txt
+printf '%s\n' 'YOUR_ADMIN_TOKEN' > secrets/cue-admin-token.txt
 chmod 600 secrets/*.txt
 docker compose up -d
 curl http://127.0.0.1:19000/admin/status \
@@ -45,7 +43,7 @@ The `/a2a/inbound` endpoint now expects the **CUE admin token** (not the old A2A
 
 ### QwenPaw / Pawly
 
-Pawly communicates via CORE standard A2A JSON-RPC surface at port 18800. The CUE listener at 18801 is for host-internal inbound routing.
+Pawly communicates via CORE's standard A2A JSON-RPC surface at port 18800. The CUE listener at 18801 is for host-internal inbound routing.
 
 ### Hermes / Claude
 
