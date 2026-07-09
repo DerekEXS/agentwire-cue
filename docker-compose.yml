@@ -3,7 +3,7 @@ services:
     build:
       context: ../agentwire_core
       dockerfile: Dockerfile.v2
-    image: agentwire-core:v2.0.6
+    image: agentwire-core:v2.0.7
     container_name: agentwire-core
     # v1.6.2: WSL2 环境下必须使用 host 网络模式
     #   - bridge 模式无法绑定 Tailscale IP (100.70.166.21) — 容器端口只能到 WSL localhost
@@ -43,7 +43,7 @@ services:
   agentwire-cue:
     build:
       context: .
-    image: agentwire-cue:v2.0.4
+    image: agentwire-cue:v2.0.6
     container_name: agentwire-cue
     # v1.6.2: 跟随 CORE 用 host 网络模式（同样 WSL2 Tailscale 兼容原因）
     # 18801/19000 通过下方 ports 映射限制仅 host loopback 可达
