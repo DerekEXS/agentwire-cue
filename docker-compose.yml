@@ -6,7 +6,7 @@ services:
     image: agentwire-core:v2.0.8
     container_name: agentwire-core
     # v1.6.2: WSL2 环境下必须使用 host 网络模式
-    #   - bridge 模式无法绑定 Tailscale IP (100.70.166.21) — 容器端口只能到 WSL localhost
+    #   - bridge 模式无法绑定 Tailscale IP (<TAILSCALE_IP>) — 容器端口只能到 WSL localhost
     #   - bridge 模式绑定 0.0.0.0:18800 会与 Windows svchost (iphlpsvc) 端口冲突
     #   - host 模式下容器直接使用 WSL 网络栈，可正常接受 Tailscale 入站连接
     # 安全注意事项:
