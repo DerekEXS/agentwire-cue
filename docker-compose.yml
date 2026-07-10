@@ -57,6 +57,8 @@ services:
     volumes:
       - ./examples:/plugins:ro
       - cue_data:/data
+      # v2.1.1: persist script-receiver output so files survive container rebuild
+      - ./data/scripts:/home/agentwire/.local/share/agentwire-cue/scripts
     secrets:
       - source: a2a-token
         target: a2a-token.txt

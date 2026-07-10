@@ -1,0 +1,21 @@
+# script-receiver production overlay (v1.6.5)
+#
+# v1.6.5 loader: this file is automatically merged on top of cue.yaml
+# when CUE starts. Only specify keys that differ from the base — the
+# deep-merge preserves everything else from cue.yaml.
+#
+# Gitignored via `examples/**/*.local.yaml` — never commit real values.
+#
+# Wrapper structure MUST match cue.yaml (spec.peers, spec.triggers, etc.).
+# Do NOT add `apiVersion`, `kind`, `metadata` here — those come from base.
+
+spec:
+  peers:
+    main:
+      uuid: "main-demo-uuid"
+      url: "http://127.0.0.1:18880"
+      description: "CORE v2.0 A2A gateway"
+    remote_peer_a:
+      uuid: "75755f137e7451c0"
+      url: "http://100.91.108.62:18800"
+      description: "Pawly (小爪) @ QwenPaw — token rotated 2026-07-05"
