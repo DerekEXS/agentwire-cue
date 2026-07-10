@@ -17,6 +17,9 @@ services:
     volumes:
       - core_history:/data/history
       - core_peers:/data/peers
+      # v2.1.1 fix: override baked config with corrected peer token_file
+      # Without this, CORE → CUE dispatch fails with HTTP 401 (missing auth token)
+      - ../agentwire_core/docker/core-config.yaml:/app/server/config.yaml:ro
     secrets:
       - source: a2a-token
         target: a2a-token.txt
