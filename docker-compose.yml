@@ -3,7 +3,7 @@ services:
     build:
       context: ../agentwire_core
       dockerfile: Dockerfile.v2
-    image: agentwire-core:v2.2.0
+    image: agentwire-core:v2.3.0
     container_name: agentwire-core
     # v1.6.2: WSL2 环境下必须使用 host 网络模式
     #   - bridge 模式无法绑定 Tailscale IP (<TAILSCALE_IP>) — 容器端口只能到 WSL localhost
