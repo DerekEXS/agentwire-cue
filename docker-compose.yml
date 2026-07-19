@@ -46,6 +46,12 @@ services:
   agentwire-cue:
     build:
       context: .
+    # NOTE: CUE image tag intentionally stays at v2.2.0 while CORE advances to
+    # v2.3.0. CUE code is unchanged in v2.3.0 (the OpenClaw native A2A plugin
+    # lives in the CORE repo's plugin/ subdir; CUE is unaffected). Rebuilding a
+    # v2.3.0 CUE image would be an empty operation. The version skew is benign —
+    # CORE routes to OpenClaw via the plugin, not via CUE. Bump this tag only
+    # when CUE itself ships a new version.
     image: agentwire-cue:v2.2.0
     container_name: agentwire-cue
     # v1.6.2: 跟随 CORE 用 host 网络模式（同样 WSL2 Tailscale 兼容原因）
